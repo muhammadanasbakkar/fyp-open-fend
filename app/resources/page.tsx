@@ -35,7 +35,7 @@ export default function ResourcesPage() {
         <header className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight">Resources</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600">
-            Helpful links and guides to get the most out of PsyTrack.
+            Helpful links and guides to get the most out of TheraKonnect.
           </p>
         </header>
 

@@ -15,7 +15,13 @@ function cn(...a: (string | false | null | undefined)[]) {
 function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true" className="shrink-0">
+      <svg
+        width="28"
+        height="28"
+        viewBox="0 0 64 64"
+        aria-hidden="true"
+        className="shrink-0"
+      >
         {/* Brain-ish mark */}
         <defs>
           <linearGradient id="g" x1="0" x2="1">
@@ -23,10 +29,17 @@ function Logo({ className }: { className?: string }) {
             <stop offset="1" stopColor="var(--brand2,#6aa7ff)" />
           </linearGradient>
         </defs>
-        <path fill="url(#g)" d="M32 6c11 0 20 9 20 20v7c0 9-7 16-16 16h-3c-1 3-4 5-7 5-5 0-9-4-9-9v-1c-4-2-7-6-7-11V26C10 14 21 6 32 6z" />
-        <path fill="#fff" fillOpacity=".85" d="M22 24a2 2 0 1 1 0-4h8a2 2 0 1 1 0 4h-8zm-3 8a2 2 0 0 1 2-2h16a2 2 0 1 1 0 4H21a2 2 0 0 1-2-2zm6 8a2 2 0 0 1 2-2h10a2 2 0 1 1 0 4H27a2 2 0 0 1-2-2z" />
+        <path
+          fill="url(#g)"
+          d="M32 6c11 0 20 9 20 20v7c0 9-7 16-16 16h-3c-1 3-4 5-7 5-5 0-9-4-9-9v-1c-4-2-7-6-7-11V26C10 14 21 6 32 6z"
+        />
+        <path
+          fill="#fff"
+          fillOpacity=".85"
+          d="M22 24a2 2 0 1 1 0-4h8a2 2 0 1 1 0 4h-8zm-3 8a2 2 0 0 1 2-2h16a2 2 0 1 1 0 4H21a2 2 0 0 1-2-2zm6 8a2 2 0 0 1 2-2h10a2 2 0 1 1 0 4H27a2 2 0 0 1-2-2z"
+        />
       </svg>
-      <span className="font-semibold tracking-tight">PsyTrack</span>
+      <span className="font-semibold tracking-tight">TheraKonnect</span>
     </span>
   );
 }
@@ -47,13 +60,15 @@ function NavLink({
 }) {
   const navClasses = cn(
     "rounded-md px-3 py-2 text-sm font-medium",
-    active ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+    active
+      ? "bg-gray-100 text-gray-900"
+      : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
   );
 
   const menuClasses = cn(
     "block w-full rounded-lg px-3 py-2 text-sm",
     "text-gray-700 hover:bg-gray-50",
-    "whitespace-nowrap",                 // prevent line breaks
+    "whitespace-nowrap", // prevent line breaks
     active && "bg-gray-100 text-gray-900"
   );
 
@@ -72,9 +87,9 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
 
-  const [open, setOpen] = useState(false);           // mobile menu
-  const [userOpen, setUserOpen] = useState(false);   // user dropdown (desktop)
-  const [apptOpen, setApptOpen] = useState(false);   // appointments dropdown (desktop)
+  const [open, setOpen] = useState(false); // mobile menu
+  const [userOpen, setUserOpen] = useState(false); // user dropdown (desktop)
+  const [apptOpen, setApptOpen] = useState(false); // appointments dropdown (desktop)
   const [therapyOpen, setTherapyOpen] = useState(false); // therapy mega menu (desktop)
 
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -86,30 +101,54 @@ export default function Navbar() {
 
   // Role links
   const roleLinks = [
-    ...(role === "therapist" ? [{ href: "/availability", label: "Availability" }] : []),
-    ...(role === "receptionist" ? [{ href: "/receptionist/book", label: "Reception" }] : []),
-    ...(role === "superAdmin" ? [{ href: "/admin/pending-users", label: "Admin" }] : []),
+    ...(role === "therapist"
+      ? [{ href: "/availability", label: "Availability" }]
+      : []),
+    ...(role === "receptionist"
+      ? [{ href: "/receptionist/book", label: "Reception" }]
+      : []),
+    ...(role === "superAdmin"
+      ? [
+          { href: "/admin/pending-users", label: "Admin" },
+          { href: "/admin/hospitals", label: "Admin: Hospitals" },
+        ]
+      : []),
     ...(role === "therapist"
       ? [
-        { href: "/patient-records/request", label: "Request Records" },
-        { href: "/patient-records/requests", label: "Record Requests" },
-        { href: "/patient-records/shared", label: "Shared Records" },
-      ]
+          // { href: "/patient-records/request", label: "Request Records" },
+          // { href: "/patient-records/requests", label: "Record Requests" },
+          // { href: "/patient-records/shared", label: "Shared Records" },
+        ]
       : role === "superAdmin"
-        ? [{ href: "/patient-records/requests", label: "Record Requests" }]
-        : []),
+      ? [{ href: "/patient-records/requests", label: "Record Requests" }]
+      : []),
   ];
 
   // Mega menu data (many therapy options)
-  const therapyColumns: { heading: string; items: { href: string; label: string; desc?: string }[] }[] = [
+  const therapyColumns: {
+    heading: string;
+    items: { href: string; label: string; desc?: string }[];
+  }[] = [
     {
       heading: "By Modality",
       items: [
-        { href: "/therapy/cbt", label: "CBT", desc: "Cognitive Behavioral Therapy" },
-        { href: "/therapy/dbt", label: "DBT", desc: "Dialectical Behavior Therapy" },
+        {
+          href: "/therapy/cbt",
+          label: "CBT",
+          desc: "Cognitive Behavioral Therapy",
+        },
+        {
+          href: "/therapy/dbt",
+          label: "DBT",
+          desc: "Dialectical Behavior Therapy",
+        },
         { href: "/therapy/emdr", label: "EMDR", desc: "Trauma processing" },
         { href: "/therapy/act", label: "ACT", desc: "Acceptance & Commitment" },
-        { href: "/therapy/mindfulness", label: "Mindfulness", desc: "MBSR & MBCT" },
+        {
+          href: "/therapy/mindfulness",
+          label: "Mindfulness",
+          desc: "MBSR & MBCT",
+        },
         { href: "/therapy/psychodynamic", label: "Psychodynamic" },
         { href: "/therapy/solution-focused", label: "Solution-Focused" },
       ],
@@ -179,9 +218,12 @@ export default function Navbar() {
     }
     function onClick(e: MouseEvent) {
       const t = e.target as Node;
-      if (userMenuRef.current && !userMenuRef.current.contains(t)) setUserOpen(false);
-      if (apptMenuRef.current && !apptMenuRef.current.contains(t)) setApptOpen(false);
-      if (therapyMenuRef.current && !therapyMenuRef.current.contains(t)) setTherapyOpen(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(t))
+        setUserOpen(false);
+      if (apptMenuRef.current && !apptMenuRef.current.contains(t))
+        setApptOpen(false);
+      if (therapyMenuRef.current && !therapyMenuRef.current.contains(t))
+        setTherapyOpen(false);
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("click", onClick);
@@ -209,7 +251,9 @@ export default function Navbar() {
               aria-haspopup="menu"
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium",
-                therapyActive ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                therapyActive
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
               )}
             >
               Therapy
@@ -236,8 +280,14 @@ export default function Navbar() {
                               isActive(it.href) && "bg-gray-100 text-gray-900"
                             )}
                           >
-                            <span className="text-sm text-gray-800">{it.label}</span>
-                            {it.desc && <span className="text-[11px] text-gray-500">{it.desc}</span>}
+                            <span className="text-sm text-gray-800">
+                              {it.label}
+                            </span>
+                            {it.desc && (
+                              <span className="text-[11px] text-gray-500">
+                                {it.desc}
+                              </span>
+                            )}
                           </Link>
                         </li>
                       ))}
@@ -256,38 +306,69 @@ export default function Navbar() {
               aria-haspopup="menu"
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-medium",
-                apptActive ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                apptActive
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
               )}
             >
-              Appointments <span className="ml-1 inline-block align-middle">▾</span>
+              Appointments{" "}
+              <span className="ml-1 inline-block align-middle">▾</span>
             </button>
             {apptOpen && (
               <div
                 role="menu"
                 className="absolute left-0 mt-2 min-w-[220px] rounded-xl border border-gray-100 bg-white p-1 shadow-lg"
               >
-                <NavLink variant="menu" href="/appointments/book" label="Book an appointment" active={isActive("/appointments/book")} />
-                <NavLink variant="menu" href="/appointments/my" label="My appointments" active={isActive("/appointments/my")} />
-                <NavLink variant="menu" href="/appointments/find-therapist" label="Find a therapist" active={isActive("/appointments/find-therapist")} />
-                <NavLink variant="menu" href="/appointments/insurance" label="Insurance & fees" active={isActive("/appointments/insurance")} />
+                <NavLink
+                  variant="menu"
+                  href="/appointments/book"
+                  label="Book an appointment"
+                  active={isActive("/appointments/book")}
+                />
+                <NavLink
+                  variant="menu"
+                  href="/appointments/my"
+                  label="My appointments"
+                  active={isActive("/appointments/my")}
+                />
+                <NavLink
+                  variant="menu"
+                  href="/appointments/find-therapist"
+                  label="Find a therapist"
+                  active={isActive("/appointments/find-therapist")}
+                />
+                <NavLink
+                  variant="menu"
+                  href="/appointments/insurance"
+                  label="Insurance & fees"
+                  active={isActive("/appointments/insurance")}
+                />
               </div>
             )}
           </div>
 
           {/* Role-aware links */}
           {roleLinks.map((l) => (
-            <NavLink key={l.href} href={l.href} label={l.label} active={isActive(l.href)} />
+            <NavLink
+              key={l.href}
+              href={l.href}
+              label={l.label}
+              active={isActive(l.href)}
+            />
           ))}
 
           {/* Resources */}
-          <NavLink href="/resources" label="Resources" active={isActive("/resources")} />
+          <NavLink
+            href="/resources"
+            label="Resources"
+            active={isActive("/resources")}
+          />
           <NavLink href="/about" label="About" active={isActive("/about")} />
         </nav>
 
         {/* Right side (auth) */}
         <div className="hidden md:flex items-center gap-3">
           {!user ? (
-            
             <>
               <Link
                 href="/login"
@@ -310,7 +391,9 @@ export default function Navbar() {
                 aria-haspopup="menu"
                 className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
               >
-                <span className="hidden sm:inline text-sm text-gray-700">Hi, {firstName}</span>
+                <span className="hidden sm:inline text-sm text-gray-700">
+                  Hi, {firstName}
+                </span>
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
                   {firstName.slice(0, 1).toUpperCase()}
                 </span>
@@ -320,8 +403,16 @@ export default function Navbar() {
                   role="menu"
                   className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-lg flex flex-col"
                 >
-                  <NavLink href="/dashboard" label="Dashboard" active={isActive("/dashboard")} />
-                  <NavLink href="/settings" label="Settings" active={isActive("/settings")} />
+                  <NavLink
+                    href="/dashboard"
+                    label="Dashboard"
+                    active={isActive("/dashboard")}
+                  />
+                  <NavLink
+                    href="/settings"
+                    label="Settings"
+                    active={isActive("/settings")}
+                  />
                   <button
                     onClick={logout}
                     className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-gray-50"
@@ -373,7 +464,7 @@ export default function Navbar() {
                         label={it.label}
                         active={isActive(it.href)}
                         onClick={() => setOpen(false)}
-                      // className="mx-2"
+                        // className="mx-2"
                       />
                     ))}
                   </div>
@@ -386,10 +477,30 @@ export default function Navbar() {
               <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Appointments
               </div>
-              <NavLink href="/appointments/book" label="Book" active={isActive("/appointments/book")} onClick={() => setOpen(false)} />
-              <NavLink href="/appointments/my" label="My" active={isActive("/appointments/my")} onClick={() => setOpen(false)} />
-              <NavLink href="/appointments/find-therapist" label="Find a therapist" active={isActive("/appointments/find-therapist")} onClick={() => setOpen(false)} />
-              <NavLink href="/appointments/insurance" label="Insurance & fees" active={isActive("/appointments/insurance")} onClick={() => setOpen(false)} />
+              <NavLink
+                href="/appointments/book"
+                label="Book"
+                active={isActive("/appointments/book")}
+                onClick={() => setOpen(false)}
+              />
+              <NavLink
+                href="/appointments/my"
+                label="My"
+                active={isActive("/appointments/my")}
+                onClick={() => setOpen(false)}
+              />
+              <NavLink
+                href="/appointments/find-therapist"
+                label="Find a therapist"
+                active={isActive("/appointments/find-therapist")}
+                onClick={() => setOpen(false)}
+              />
+              <NavLink
+                href="/appointments/insurance"
+                label="Insurance & fees"
+                active={isActive("/appointments/insurance")}
+                onClick={() => setOpen(false)}
+              />
             </div>
 
             {/* Role links */}
@@ -438,7 +549,9 @@ export default function Navbar() {
                     aria-haspopup="menu"
                     className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--brand,#4b7eff)]"
                   >
-                    <span className="hidden sm:inline text-sm text-gray-700">Hi, {firstName}</span>
+                    <span className="hidden sm:inline text-sm text-gray-700">
+                      Hi, {firstName}
+                    </span>
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
                       {firstName.slice(0, 1).toUpperCase()}
                     </span>

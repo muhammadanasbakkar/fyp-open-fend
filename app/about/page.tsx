@@ -8,9 +8,9 @@ export default function AboutPage() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6 py-12 space-y-10">
         {/* Header */}
         <header className="text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">About PsyTrack</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">About TheraKonnect</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600">
-            PsyTrack helps clinics and independent therapists manage availability, appointments,
+            TheraKonnect helps clinics and independent therapists manage availability, appointments,
             and patient notes—securely and simply.
           </p>
         </header>
@@ -19,7 +19,7 @@ export default function AboutPage() {
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Our mission</h2>
           <p className="mt-2 text-sm text-gray-600">
-            We believe mental healthcare deserves modern, privacy-first tools. PsyTrack streamlines admin
+            We believe mental healthcare deserves modern, privacy-first tools. TheraKonnect streamlines admin
             tasks so clinicians can focus on care: booking, reminders, patient records, and inter-therapist
             sharing with superAdmin oversight.
           </p>
@@ -44,7 +44,7 @@ export default function AboutPage() {
 
         {/* How it works */}
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">How PsyTrack helps</h2>
+          <h2 className="text-lg font-semibold">How TheraKonnect helps</h2>
           <ul className="mt-3 grid gap-3 sm:grid-cols-2">
             <li className="rounded-lg border border-gray-100 bg-gray-50 p-4">
               <p className="font-medium">Smart booking</p>
