@@ -409,7 +409,7 @@ export default function Navbar() {
                     active={isActive("/dashboard")}
                   />
                   <NavLink
-                    href="/settings"
+                    href="/settings/profile"
                     label="Settings"
                     active={isActive("/settings")}
                   />
