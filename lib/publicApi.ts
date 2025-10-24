@@ -3,4 +3,5 @@ export async function publicApi<T=any>(path: string, init?: RequestInit): Promis
   const res = await fetch(`${API}${path}`, { ...init, cache: "no-store" });
   if (!res.ok) throw new Error((await res.json().catch(()=>({})))?.msg || "Request failed");
   return res.json();
+
 }
