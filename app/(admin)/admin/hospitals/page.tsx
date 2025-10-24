@@ -5,7 +5,6 @@ import Protected from "@/components/Protected";
 import RoleGuard from "@/components/RoleGuard";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
-import Select from "@/components/Select";
 import { api, authHeader } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
