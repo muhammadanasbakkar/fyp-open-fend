@@ -2379,7 +2379,9 @@ function BookPageInner() {
             />
             {otpErr && <p className="mt-2 text-xs text-red-600">{otpErr}</p>}
             <div className="mt-4 flex justify-end gap-2">
-              <Button onClick={() => setShowOtp(false)} variant="secondary">
+              <Button onClick={() => setShowOtp(false)} 
+              // variant="secondary"
+              >
                 Cancel
               </Button>
               <Button onClick={verifyOtpAndBook}>Verify & Book</Button>

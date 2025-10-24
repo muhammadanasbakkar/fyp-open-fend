@@ -238,7 +238,6 @@
 //   );
 // }
 
-
 // app/availability/page.tsx
 "use client";
 import Protected from "@/components/Protected";
@@ -259,8 +258,10 @@ const INPUT_FMT = "YYYY-MM-DDTHH:mm"; // value format for datetime-local
 const DISPLAY_FMT = "ddd, MMM DD, YYYY hh:mm A"; // human-readable
 
 type Hospital = {
-  _id: string;
-  name: string;
+  // hospitals?: {
+    _id: string;
+    name: string;
+  // }[];
   // add other fields if your API returns them
 };
 
@@ -302,6 +303,7 @@ function groupByDate(list: AvailabilityItem[]) {
 function Inner() {
   const { token } = useAuth();
 
+  console.log("AvailabilityPage Inner render, token:", token);
   // Defaults: now and +2h in user's local time
   const [start, setStart] = useState(dayjs().format(INPUT_FMT));
   const [end, setEnd] = useState(dayjs().add(2, "hour").format(INPUT_FMT));
@@ -312,7 +314,7 @@ function Inner() {
   const [loading, setLoading] = useState(false);
 
   // Hospitals
-  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [hospitals, setHospitals] = useState<any[]>([]);
   const [hospitalId, setHospitalId] = useState<string>(""); // selected
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
   const [hospitalsErr, setHospitalsErr] = useState("");
@@ -336,7 +338,8 @@ function Inner() {
       const s = dayjs(start);
       const e = dayjs(end);
 
-      if (!s.isValid() || !e.isValid()) throw new Error("Please choose valid dates.");
+      if (!s.isValid() || !e.isValid())
+        throw new Error("Please choose valid dates.");
       if (!e.isAfter(s)) throw new Error("End must be after start.");
 
       const minutes = e.diff(s, "minute");
@@ -400,10 +403,11 @@ function Inner() {
       const res = await api("api/public/hospitals", {
         headers: authHeader(token || undefined),
       });
-      const arr = (res || []) as Hospital[];
+      const arr = (res?.hospitals || []) as Hospital[];
+      // console.log("Loaded hospitals:", arr);
       setHospitals(arr);
       // If nothing selected yet, pick first hospital by default
-      if (!hospitalId && arr.length) setHospitalId(arr[0]._id);
+      if (!hospitalId && arr.length) setHospitalId(arr[0]?._id);
     } catch (e: any) {
       setHospitalsErr(e.message || "Failed to load hospitals.");
     } finally {
@@ -420,7 +424,7 @@ function Inner() {
   // convenience map for displaying hospital names on items
   const hospitalNameById = useMemo(() => {
     const m: Record<string, string> = {};
-    hospitals.forEach((h) => (m[h._id] = h.name));
+    hospitals?.forEach((h) => (m[h?._id] = h?.name));
     return m;
   }, [hospitals]);
 
@@ -444,7 +448,9 @@ function Inner() {
 
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="sm:col-span-2">
-            <label className="text-sm text-gray-600 mb-1 block">Hospital / Clinic</label>
+            <label className="text-sm text-gray-600 mb-1 block">
+              Hospital / Clinic
+            </label>
             <select
               value={hospitalId}
               onChange={(e) => setHospitalId(e.target.value)}
@@ -455,8 +461,8 @@ function Inner() {
                 <option value="">No hospitals available</option>
               )}
               {hospitals.map((h) => (
-                <option key={h._id} value={h._id}>
-                  {h.name}
+                <option key={h?._id} value={h?._id}>
+                  {h?.name}
                 </option>
               ))}
             </select>
@@ -486,7 +492,9 @@ function Inner() {
         <div className="mt-3 flex items-center justify-between">
           {/* Quick durations */}
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs text-gray-500 self-center">Quick duration:</span>
+            <span className="text-xs text-gray-500 self-center">
+              Quick duration:
+            </span>
             {[30, 45, 60, 90, 120].map((m) => (
               <button
                 key={m}
@@ -500,7 +508,10 @@ function Inner() {
             ))}
           </div>
 
-          <Button onClick={createSlot} disabled={loading || hospitalsLoading || !hospitalId}>
+          <Button
+            onClick={createSlot}
+            disabled={loading || hospitalsLoading || !hospitalId}
+          >
             {loading ? "Adding…" : "Add"}
           </Button>
         </div>
@@ -525,7 +536,9 @@ function Inner() {
               const dayHeader = dayjs(dayKey).format("dddd, MMM D, YYYY");
               return (
                 <div key={dayKey} className="space-y-2">
-                  <div className="text-xs font-semibold text-gray-500">{dayHeader}</div>
+                  <div className="text-xs font-semibold text-gray-500">
+                    {dayHeader}
+                  </div>
                   <div className="space-y-2">
                     {items.map((s) => {
                       const attachedName =
@@ -543,7 +556,9 @@ function Inner() {
                               {fmtLocal(s.end)}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {attachedName ? attachedName : "— No hospital specified —"}
+                              {attachedName
+                                ? attachedName
+                                : "— No hospital specified —"}
                             </div>
                           </div>
                           <button
