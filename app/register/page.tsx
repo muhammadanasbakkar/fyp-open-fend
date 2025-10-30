@@ -11,6 +11,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 export default function RegisterPatientPage() {
   const [gender, setGender] = useState<"male"|"female"|"other"|"">("");
   const [dateOfBirth, setDob] = useState("");
+  const [cnicLastDigits, setCnicLastDigits] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
@@ -24,7 +25,7 @@ export default function RegisterPatientPage() {
       const res = await fetch(`${API}api/auth/register-patient`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gender, dateOfBirth, password }),
+        body: JSON.stringify({ gender, dateOfBirth, password, cnicLastDigits }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.msg || "Registration failed");
@@ -83,6 +84,11 @@ export default function RegisterPatientPage() {
             <div>
               <label className="mb-1 block text-sm text-gray-700">Date of birth</label>
               <Input type="date" value={dateOfBirth} onChange={(e) => setDob(e.target.value)} required />
+            </div>
+           
+            <div>
+              <label className="mb-1 block text-sm text-gray-700">CNIC last 4 Digits</label>
+              <Input type="text" value={cnicLastDigits} onChange={(e) => setCnicLastDigits(e.target.value)} required />
             </div>
 
             <div className="relative">
