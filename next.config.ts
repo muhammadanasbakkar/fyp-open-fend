@@ -29,9 +29,9 @@ const nextConfig = {
   images: {
     domains: ["images.remotePatterns"],
     remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "res.cloudinary.com" },
-      { protocol: "https", hostname: "oladoc.com" },
+      { protocol: "https", hostname: "d3gj7dgsk3dlhn.cloudfront.net" },
+      // if you still have some S3 absolute URLs in old records:
+      { protocol: "https", hostname: "therakonnect-storage.s3.us-east-1.amazonaws.com" },
     ],
   },
 };
