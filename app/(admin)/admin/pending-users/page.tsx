@@ -460,10 +460,14 @@ export default function PendingUsersPage() {
                                         c.fileKey,
                                         c.fileUrl
                                       );
+                                      const url = isAbsoluteUrl(certHref)
+                                        ? certHref
+                                        : process.env.NEXT_PUBLIC_CDN_URL +
+                                          certHref;
                                       return (
                                         <a
                                           key={i}
-                                          href={certHref}
+                                          href={url}
                                           target="_blank"
                                           rel="noreferrer"
                                           className="inline-flex items-center rounded-md border px-2 py-1 text-[11px] hover:bg-gray-50"
