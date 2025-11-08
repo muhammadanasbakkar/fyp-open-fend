@@ -242,133 +242,13 @@ export default function PendingUsersPage() {
             No pending users.
           </div>
         ) : (
-          // <ul className="grid gap-4">
-          //   {filtered.map((u) => {
-          //       const profileSrc = pickImageSrc(u.profilePictureKey, u.profilePicture);
-          //       return(
-          //     <li
-          //       key={u._id}
-          //       className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
-          //     >
-          //       <div className="flex items-start justify-between gap-4">
-          //         <div className="flex items-start gap-4">
-          //           {/* avatar */}
-          //           <div className="h-12 w-12 overflow-hidden rounded-xl ring-1 ring-gray-200">
-          //             {/* eslint-disable-next-line @next/next/no-img-element */}
-          //             <Image
-          //               alt={u.name}
-          //               src={profileSrc || "/avatar-placeholder.png"}
-          //               className="h-full w-full object-cover"
-          //               width={48}
-          //               height={48}
-          //             />
-          //           </div>
-          //           <div>
-          //             <p className="text-sm font-medium text-gray-900">
-          //               {u.name}{" "}
-          //               <span className="ml-2 rounded-md bg-gray-100 px-2 py-0.5 text-xs">
-          //                 {u.role}
-          //               </span>
-          //             </p>
-          //             <p className="text-sm text-gray-600">
-          //               {u.email} {u.phone ? <>• {u.phone}</> : null}{" "}
-          //               {u.cnic ? <>• CNIC: {u.cnic}</> : null}
-          //             </p>
-          //             {u.address && (
-          //               <p className="text-xs text-gray-500 mt-1">
-          //                 {u.address}
-          //               </p>
-          //             )}
-
-          //             {u.role === "therapist" && (
-          //               <div className="mt-3 grid gap-2">
-          //                 {!!u.therapistInfo?.specializations?.length && (
-          //                   <p className="text-xs text-gray-700">
-          //                     <span className="font-medium">
-          //                       Specializations:
-          //                     </span>{" "}
-          //                     {u.therapistInfo.specializations.join(", ")}
-          //                   </p>
-          //                 )}
-          //                 {!!u.therapistInfo?.modalities?.length && (
-          //                   <p className="text-xs text-gray-700">
-          //                     <span className="font-medium">Modalities:</span>{" "}
-          //                     {u.therapistInfo.modalities.join(", ")}
-          //                   </p>
-          //                 )}
-          //                 {!!u.therapistInfo?.concerns?.length && (
-          //                   <p className="text-xs text-gray-700">
-          //                     <span className="font-medium">Concerns:</span>{" "}
-          //                     {u.therapistInfo.concerns.join(", ")}
-          //                   </p>
-          //                 )}
-          //                 {!!u.therapistInfo?.populations?.length && (
-          //                   <p className="text-xs text-gray-700">
-          //                     <span className="font-medium">Populations:</span>{" "}
-          //                     {u.therapistInfo.populations.join(", ")}
-          //                   </p>
-          //                 )}
-          //                 {!!u.therapistInfo?.careSettings?.length && (
-          //                   <p className="text-xs text-gray-700">
-          //                     <span className="font-medium">
-          //                       Care settings:
-          //                     </span>{" "}
-          //                     {u.therapistInfo.careSettings.join(", ")}
-          //                   </p>
-          //                 )}
-          //                 {!!u.therapistInfo?.certifications?.length && (
-          //                   <div className="text-xs text-gray-700">
-          //                     <span className="font-medium">
-          //                       Certifications:
-          //                     </span>{" "}
-          //                     <span className="text-gray-600">
-          //                       {u.therapistInfo.certifications.length} file(s)
-          //                     </span>
-          //                     <div className="mt-1 flex flex-wrap gap-2">
-          //                       {u.therapistInfo.certifications
-          //                         .slice(0, 4)
-          //                         .map((c, i) => (
-          //                           <a
-          //                             key={i}
-          //                             href={c.fileUrl}
-          //                             target="_blank"
-          //                             rel="noreferrer"
-          //                             className="inline-flex items-center rounded-md border px-2 py-1 text-[11px] hover:bg-gray-50"
-          //                           >
-          //                             View
-          //                           </a>
-          //                         ))}
-          //                     </div>
-          //                   </div>
-          //                 )}
-          //               </div>
-          //             )}
-          //           </div>
-          //         </div>
-
-          //         <div className="flex shrink-0 items-center gap-2">
-          //           <Button onClick={() => act(u._id, "approve")}>
-          //             Approve
-          //           </Button>
-          //           <button
-          //             onClick={() => act(u._id, "reject")}
-          //             className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          //           >
-          //             Reject
-          //           </button>
-          //         </div>
-          //       </div>
-          //     </li>
-          //   ))}
-          // </ul>
-
           <ul className="grid gap-4">
             {filtered.map((u) => {
               const profileSrc = pickImageSrc(
                 u.profilePictureKey,
                 u.profilePicture
               );
-              console.log("profileSrc", profileSrc);
+              const profilePic = process.env.NEXT_PUBLIC_CDN_BASE + profileSrc;
               return (
                 <li
                   key={u._id}
@@ -378,9 +258,16 @@ export default function PendingUsersPage() {
                     <div className="flex items-start gap-4">
                       {/* avatar */}
                       <div className="h-12 w-12 overflow-hidden rounded-xl ring-1 ring-gray-200">
-                        <Image
+                        {/* <Image
                           alt={u.name}
                           src={toCDN(profileSrc) || "/avatar-placeholder.png"}
+                          width={48}
+                          height={48}
+                          /> */}
+                        <Image
+                          alt={u.name}
+                          // className="h-full w-full object-cover"
+                          src={profilePic}
                           className="h-full w-full object-cover"
                           width={48}
                           height={48}
@@ -462,7 +349,7 @@ export default function PendingUsersPage() {
                                       );
                                       const url = isAbsoluteUrl(certHref)
                                         ? certHref
-                                        : process.env.NEXT_PUBLIC_CDN_URL +
+                                        : process.env.NEXT_PUBLIC_CDN_BASE +
                                           certHref;
                                       return (
                                         <a
