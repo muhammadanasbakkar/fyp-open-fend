@@ -889,7 +889,7 @@ export default function RegisterStaffPage() {
                     <input
                       type="file"
                       multiple
-                      accept="image/*,application/pdf"
+                      accept="image/*"
                       onChange={(e)=>setForm((f:any)=>({...f,certFiles:e.target.files || undefined}))}
                       required
                       className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
