@@ -977,7 +977,9 @@ import Button from "@/components/Button";
 import { api, authHeader } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import dayjs from "dayjs";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 type Therapist = {
   _id: string;
@@ -1017,6 +1019,7 @@ function uniqById<T extends { _id?: any }>(list: T[]): (T & { _id: string })[] {
 
 function BookPageInner() {
   const { token } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const referralFromQS = searchParams.get("referral") || "";
 
@@ -1050,6 +1053,9 @@ function BookPageInner() {
   const [durationMin, setDurationMin] = useState(60);
   const [reason, setReason] = useState("");
   const [meetingLink, setMeetingLink] = useState("");
+
+  const [phone, setPhone] = useState("");
+  const [phoneErr, setPhoneErr] = useState("");
 
   // ui status
   const [err, setErr] = useState("");
@@ -1092,14 +1098,17 @@ function BookPageInner() {
 
   // therapists
   useEffect(() => {
+    console.log("Loading therapists...");
     if (!token) return;
     (async () => {
       setErr("");
       setLoadingTherapists(true);
       try {
         const data = await api("api/therapists", {
-          headers: authHeader(token),
+          headers: authHeader(token) as HeadersInit,
         });
+
+        console.log("Therapists data:", data);
         const list = Array.isArray(data?.items) ? data.items : [];
         setTherapists(
           list.map((t: any) => ({ ...t, _id: normalizeId(t?._id) }))
@@ -1122,7 +1131,7 @@ function BookPageInner() {
       setLoadingReferral(true);
       try {
         const data = await api(`api/referrals/${referralId}/packet`, {
-          headers: authHeader(token),
+          headers: authHeader(token) as HeadersInit,
         }).catch(() => null);
         if (data?.referral) {
           const r = data.referral;
@@ -1170,17 +1179,17 @@ function BookPageInner() {
         try {
           data = await api(
             `api/therapist-clinics/therapists/${therapistId}/hospitals`,
-            { headers: authHeader(token) }
+            { headers: authHeader(token) as HeadersInit }
           );
         } catch {
           try {
             data = await api(
               `api/therapistClinics/therapists/${therapistId}/hospitals`,
-              { headers: authHeader(token) }
+              { headers: authHeader(token) as HeadersInit }
             );
           } catch {
             data = await api(`api/hospitals/therapist/${therapistId}`, {
-              headers: authHeader(token),
+              headers: authHeader(token) as HeadersInit,
             });
           }
         }
@@ -1211,7 +1220,7 @@ function BookPageInner() {
       setLoadingFees(true);
       try {
         const data = await api(`api/therapists/${therapistId}/fees`, {
-          headers: authHeader(token),
+          headers: authHeader(token) as HeadersInit,
         });
 
         let fee = 0;
@@ -1247,6 +1256,41 @@ function BookPageInner() {
   }
 
   // load free slots
+  // useEffect(() => {
+  //   if (!token || !therapistId) {
+  //     setSlots([]);
+  //     return;
+  //   }
+  //   (async () => {
+  //     setLoadingSlots(true);
+  //     setSlots([]);
+  //     try {
+  //       const { from, to } = getSelectedDayWindow();
+  //       const qs = new URLSearchParams({
+  //         from,
+  //         to,
+  //         slotMinutes: String(slotMinutes),
+  //         ...(mode === "in-person" && hospitalId
+  //           ? { hospital: hospitalId }
+  //           : {}),
+  //       });
+  //       const data = await api(
+  //         `api/availability/therapist/${therapistId}/free?${qs.toString()}`,
+  //         { headers: authHeader(token) as HeadersInit }
+  //       );
+  //       const list: Slot[] = Array.isArray(data?.slots) ? data.slots : [];
+  //       list.sort((a, b) =>
+  //         a.start < b.start ? -1 : a.start > b.start ? 1 : 0
+  //       );
+  //       setSlots(list);
+  //     } catch {
+  //       setSlots([]);
+  //     } finally {
+  //       setLoadingSlots(false);
+  //     }
+  //   })();
+  // }, [token, therapistId, mode, hospitalId, startLocal, slotMinutes]);
+
   useEffect(() => {
     if (!token || !therapistId) {
       setSlots([]);
@@ -1257,18 +1301,24 @@ function BookPageInner() {
       setSlots([]);
       try {
         const { from, to } = getSelectedDayWindow();
+
         const qs = new URLSearchParams({
           from,
           to,
           slotMinutes: String(slotMinutes),
-          ...(mode === "in-person" && hospitalId
-            ? { hospital: hospitalId }
-            : {}),
+          // tell backend which kind of availability to fetch
+          mode: mode === "in-person" ? "inPerson" : "online",
         });
+
+        if (mode === "in-person" && hospitalId) {
+          qs.set("hospital", hospitalId);
+        }
+
         const data = await api(
           `api/availability/therapist/${therapistId}/free?${qs.toString()}`,
-          { headers: authHeader(token) }
+          { headers: authHeader(token) as HeadersInit }
         );
+
         const list: Slot[] = Array.isArray(data?.slots) ? data.slots : [];
         list.sort((a, b) =>
           a.start < b.start ? -1 : a.start > b.start ? 1 : 0
@@ -1301,9 +1351,9 @@ function BookPageInner() {
       await api("api/appointments", {
         method: "POST",
         headers: {
-          ...authHeader(token || undefined),
+          ...(token ? authHeader(token) : {}),
           "Content-Type": "application/json",
-        },
+        } as HeadersInit,
         body: JSON.stringify({
           therapist: therapistId,
           start: startISO,
@@ -1315,6 +1365,7 @@ function BookPageInner() {
           referralId: shouldAttachReferral ? referral._id : undefined,
         }),
       });
+      router.push("/appointments/verify"); // redirect to appointments list
       setMsg(
         `Appointment booked${
           shouldAttachReferral ? " (linked to referral)" : ""
@@ -1332,43 +1383,58 @@ function BookPageInner() {
     setErr("");
     setMsg("");
     setOtpErr("");
-    if (!emailAddr.trim()) {
-      setErr("Please enter your email.");
+
+    if (mode === "online" && !isValidPhone(phone.trim())) {
+      setErr("Please enter a valid mobile number for video coordination.");
+      setPhoneErr("Enter a valid number like +92 3XX XXXXXXX");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddr.trim())) {
-      setErr("Enter a valid email.");
+
+    if (!emailAddr.trim()) {
+      setErr("Please enter a valid email.");
+      return;
+    }
+    if (!therapistId) {
+      setErr("Please choose a therapist.");
       return;
     }
     if (mode === "in-person" && !hospitalId) {
-      setErr("Please select a hospital.");
+      setErr("Please select a hospital/clinic.");
+      return;
+    }
+
+    if (!token) {
+      setErr("Session expired. Please log in again.");
       return;
     }
 
     try {
-      const body = {
+      const body: any = {
         email: emailAddr.trim(),
         therapist: therapistId,
         start: startISO,
         end: endISO,
+        mode: mode === "in-person" ? "inPerson" : "online",
         reason,
-        mode,
+        phone: phone.trim(), // 👈 add this
         hospital: mode === "in-person" ? hospitalId : undefined,
         meetingLink: mode === "online" ? meetingLink : undefined,
-        referralId: referral && linkReferral ? referral._id : undefined,
+        // referralId: referral && linkReferral ? referral._id : undefined,
       };
 
-      const data = await api("api/otp/booking/intent", {
-        // <-- adjust if your endpoint differs
+      const data = await api("api/appointments/intent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          ...(authHeader(token) as HeadersInit), // 👈 add auth here
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       });
 
-      setIntentId(data.intentId);
-      setOtpSent(true);
-      setShowOtp(true);
-      setMsg(`Verification code sent to ${data.emailMasked || emailAddr}.`);
+      // redirect to verify page with intentId
+      const intentIdFromApi = data.intentId;
+      const email = encodeURIComponent(emailAddr.trim());
+      router.push(`/appointments/verify/${intentIdFromApi}?email=${email}`);
     } catch (e: any) {
       setErr(e.message || "Could not send verification email.");
     }
@@ -1379,10 +1445,15 @@ function BookPageInner() {
     setErr("");
     setMsg("");
     try {
-      await api("api/otp/booking/verify", {
-        // <-- adjust if your endpoint differs
+      if (!token) throw new Error("Session expired. Please log in again.");
+
+      await api("api/appointments/verify", {
+        // <-- new endpoint
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? authHeader(token) : {}), // ✅ add JWT here
+        } as HeadersInit,
         body: JSON.stringify({
           intentId,
           email: emailAddr.trim(),
@@ -1390,13 +1461,13 @@ function BookPageInner() {
         }),
       });
 
-      // finalize booking (requires auth)
       await api("api/appointments/confirm", {
+        // <-- confirm (with auth)
         method: "POST",
         headers: {
-          ...authHeader(token || undefined),
+          ...authHeader(token || undefined), // <-- spread fix
           "Content-Type": "application/json",
-        },
+        } as HeadersInit,
         body: JSON.stringify({ intentId }),
       });
 
@@ -1414,6 +1485,13 @@ function BookPageInner() {
     }
   }
 
+  function isValidPhone(x: string) {
+    // very light check. starts with + or digit. 10 to 15 digits total
+    const digits = x.replace(/[^\d]/g, "");
+    return (
+      /^[+]?[\d\s\-()]+$/.test(x) && digits.length >= 10 && digits.length <= 15
+    );
+  }
   // Confirm selected slot → start email OTP
   async function confirmSelectedSlot() {
     if (!selectedSlot) return;
@@ -1424,7 +1502,7 @@ function BookPageInner() {
   async function onSubmit() {
     const startISO = dayjs(startLocal).toISOString();
     const endISO = dayjs(startLocal).add(durationMin, "minute").toISOString();
-    await bookWithTimes(startISO, endISO); // manual path keeps direct booking (no OTP)
+    await startEmailOtpFlow(startISO, endISO);
   }
 
   async function giveConsent() {
@@ -1434,11 +1512,11 @@ function BookPageInner() {
     try {
       await api(`api/referrals/${referralId}/consent`, {
         method: "POST",
-        headers: { ...authHeader(token) },
+        headers: { ...authHeader(token) } as HeadersInit,
       });
       setMsg("Consent recorded. Referral is now active.");
       const data = await api(`api/referrals/${referralId}/packet`, {
-        headers: authHeader(token),
+        headers: authHeader(token) as HeadersInit,
       }).catch(() => null);
       if (data?.referral) {
         const r = data.referral;
@@ -1552,7 +1630,7 @@ function BookPageInner() {
               name="mode"
               checked={mode === "online"}
               onChange={() => setMode("online")}
-              disabled={true}
+              // disabled={true}
             />
             Online (video) — coming soon!
           </label>
@@ -1573,42 +1651,54 @@ function BookPageInner() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {therapists.map((t) => (
-              <button
-                key={t._id}
-                type="button"
-                onClick={() => {
-                  setTherapistId(t._id);
-                  setMsg("");
-                  setErr("");
-                }}
-                className={`text-left rounded-lg border p-4 hover:bg-gray-50 ${
-                  t._id === therapistId
-                    ? "ring-2 ring-[var(--brand,#4b7eff)]"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={t.profilePicture || "/default-avatar.png"}
-                    alt={t.name || t.email || "Therapist"}
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">
-                      {t.name || t.email || "Therapist"}
-                    </div>
-                    {!!t.specializations?.length && (
-                      <div className="truncate text-xs text-gray-500">
-                        {t.specializations.slice(0, 3).join(", ")}
-                        {t.specializations.length > 3 ? "…" : ""}
+            {therapists.map((t) => {
+              console.log(t);
+              const profilePic =
+                process.env.NEXT_PUBLIC_CDN_BASE! + t?.profilePicture;
+
+              const displayName = t.name || t.email || "Therapist";
+              const specs = t.specializations?.slice(0, 3) ?? [];
+              const extraCount =
+                (t.specializations?.length || 0) - specs.length;
+              return (
+                <button
+                  key={t._id}
+                  type="button"
+                  onClick={() => {
+                    setTherapistId(t._id);
+                    setMsg("");
+                    setErr("");
+                  }}
+                  className={`text-left rounded-lg border p-4 hover:bg-gray-50 ${
+                    t._id === therapistId
+                      ? "ring-2 ring-[var(--brand,#4b7eff)]"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <Image
+                      src={profilePic}
+                      width={40}
+                      height={40}
+                      alt={t.name || t.email || "Therapist"}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {t.name || t.email || "Therapist"}
                       </div>
-                    )}
+                      {!!t.specializations?.length && (
+                        <div className="truncate text-xs text-gray-500">
+                          {t.specializations.slice(0, 3).join(", ")}
+                          {t.specializations.length > 3 ? "…" : ""}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
         {!loadingTherapists && !therapists.length && (
@@ -1679,6 +1769,31 @@ function BookPageInner() {
         </div>
       )}
 
+      {mode === "online" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          For video appointments. the therapist will contact you to coordinate
+          the call. Please provide a reachable mobile number. They may share a
+          meeting link or arrange a phone or WhatsApp call.
+        </div>
+      )}
+
+      <div>
+        <label className="mb-1 block text-sm text-gray-700">
+          Mobile number{" "}
+          {mode === "online" ? "(required for video)" : "(optional)"}
+        </label>
+        <Input
+          type="tel"
+          placeholder="+92 3XX XXXXXXX"
+          value={phone}
+          onChange={(e) => {
+            setPhone(e.target.value);
+            if (phoneErr) setPhoneErr("");
+          }}
+        />
+        {phoneErr && <p className="mt-1 text-xs text-red-600">{phoneErr}</p>}
+      </div>
+
       {/* Email for OTP */}
       <div>
         <label className="mb-1 block text-sm text-gray-700">
@@ -1691,6 +1806,13 @@ function BookPageInner() {
           onChange={(e) => setEmailAddr(e.target.value)}
         />
       </div>
+
+      {mode === "online" && (
+        <p className="mt-1 text-xs text-gray-600">
+          After you confirm. the therapist will contact you on your mobile to
+          coordinate the video call.
+        </p>
+      )}
 
       {/* Step 4: Date & slots */}
       {therapistId && (
@@ -1817,7 +1939,8 @@ function BookPageInner() {
                         disabled={
                           posting ||
                           !therapistId ||
-                          (mode === "in-person" && !hospitalId)
+                          (mode === "in-person" && !hospitalId) ||
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddr.trim())
                         }
                       >
                         {posting ? "Booking…" : "Confirm booking"}

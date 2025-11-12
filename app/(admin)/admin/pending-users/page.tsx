@@ -249,6 +249,7 @@ export default function PendingUsersPage() {
                 u.profilePicture
               );
               const profilePic = process.env.NEXT_PUBLIC_CDN_BASE + profileSrc;
+              
               return (
                 <li
                   key={u._id}

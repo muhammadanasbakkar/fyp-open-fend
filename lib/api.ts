@@ -1,21 +1,52 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL!;
-export function authHeader(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
+// export function authHeader(token?: string): Record<string, string> {
+//   return token ? { Authorization: `Bearer ${token}` } : {};
+// }
+
+// export async function api(path: string, opts: RequestInit = {}) {
+//   const res = await fetch(`${BASE}${path}`, {
+//     ...opts,
+//     headers: {
+//       "Content-Type": "application/json",
+//       ...(opts.headers || {})
+//     },
+//     cache: "no-store"
+//   });
+//   if (!res.ok) {
+//     let msg = "Request failed";
+//     try { const j = await res.json(); msg = j.msg || msg; } catch {}
+//     throw new Error(msg);
+//   }
+//   return res.json();
+// }
+
+export async function api(path: string, init: RequestInit = {}, base = "") {
+  const res = await fetch(`${BASE}${path.startsWith("/") ? path :  path}`, {
+    credentials: "include",
+    ...init,
+  });
+
+  if (res.status === 401) {
+    // tell AuthProvider to logout & redirect
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:expired"));
+    }
+    const body = await safeJson(res);
+    throw new Error(body?.msg || "Unauthorized");
+  }
+
+  if (!res.ok) {
+    const body = await safeJson(res);
+    throw new Error(body?.msg || res.statusText);
+  }
+  return safeJson(res);
 }
 
-export async function api(path: string, opts: RequestInit = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(opts.headers || {})
-    },
-    cache: "no-store"
-  });
-  if (!res.ok) {
-    let msg = "Request failed";
-    try { const j = await res.json(); msg = j.msg || msg; } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+async function safeJson(res: Response) {
+  const txt = await res.text();
+  try { return JSON.parse(txt || "{}"); } catch { return { raw: txt }; }
+}
+
+export function authHeader(token?: string) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }

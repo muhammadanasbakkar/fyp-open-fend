@@ -415,6 +415,158 @@ export default function PatientRecordPage() {
 }
 
 /** --- Simple NLP-lite: split free text into structured boxes --- */
+// function parseStructuredFromText(raw: string) {
+//   if (!raw?.trim()) {
+//     return {
+//       objective: "",
+//       diagnosis: "",
+//       treatment: "",
+//       activity: "",
+//       additionalNotes: "",
+//       residual: "",
+//     };
+//   }
+
+//   // Normalize
+//   let t = cleanTranscript(raw).replace(/\s+/g, " ").trim();
+
+//   // Common mishears (tune for your clinic)
+//   const repl: [RegExp, string][] = [
+//     /\bdiagno(?:sis|sed?)?\b/gi,
+//     "diagnosis",
+//     /\btx\b/gi,
+//     "treatment",
+//     /\bplan\b/gi,
+//     "treatment",
+//     /\bactivity\s+breath(?:ing)?\b/gi,
+//     "activity breathing",
+//     /\bhand?outs?\b/gi,
+//     "handouts",
+//   ].reduce<[RegExp, string][]>((acc, v, i, arr) => {
+//     if (i % 2 === 0) acc.push([arr[i] as RegExp, arr[i + 1] as string]);
+//     return acc;
+//   }, []);
+//   for (const [re, to] of repl) t = t.replace(re, to);
+
+//   // Section cues (you can extend these)
+//   const cues = [
+//     // label, regex group to match
+//     ["objective", "(?:objective|obj)"],
+//     ["diagnosis", "(?:diagnosis|dx)"],
+//     ["treatment", "(?:treatment|tx|plan)"],
+//     ["activity", "(?:activity|homework|tasks?)"],
+//     ["additionalNotes", "(?:additional notes?|extra notes?)"],
+//   ] as const;
+
+//   // Build a regex to capture "label: content" OR "label ... content" style.
+//   // We also allow phrases like "the objective of patient was ..." etc.
+//   // const labelPart = (g: string) =>
+//   //   `(?:the\\s+)?${g}(?:\\s+of\\s+patient\\s+(?:was|is))?|${g}|${g}\\s*:?`;
+
+//   // const bigRe = new RegExp(
+//   //   `(?:^|\\.|;|,|\\n|\\r)\\s*(?<label>${cues
+//   //     .map(([, g]) => labelPart(g))
+//   //     .join("|")})\\s*(?<sep>:|-|is|was|are|\\s)?\\s*(?<content>[^.\\n\\r]+)`,
+//   //   "gi"
+//   // );
+
+//   const labelCore = cues.map(([, g]) => g).join("|");
+//   const labelDetector = (g: string) =>
+//     `(?:the\\s+)?${g}(?:\\s+of\\s+patient\\s+(?:was|is))?|${g}\\s*:|${g}\\b`;
+
+//   // Match a label, then non-greedily eat content until the next label or the end
+//   const bigRe = new RegExp(
+//     `(?:^|[.;,\\n\\r])\\s*(?<label>${labelDetector(
+//       labelCore
+//     )})\\s*(?<sep>:|-|is|was|are|\\s)?\\s*(?<content>[\\s\\S]*?)(?=(?:[.;,\\n\\r])\\s*(?:${labelDetector(
+//       labelCore
+//     )})\\s*(?:[:\\-\\s]|is|was|are)|$)`,
+//     "gi"
+//   );
+
+//   let objective = "";
+//   let diagnosis = "";
+//   let treatment = "";
+//   let activity = "";
+//   let additionalNotes = "";
+
+//   const takenSpans: [number, number][] = [];
+
+//   let m: RegExpExecArray | null;
+//   while ((m = bigRe.exec(t)) !== null) {
+//     const labelRaw = (m.groups?.label || "").toLowerCase();
+//     const content = (m.groups?.content || "").trim();
+
+//     const assign = (
+//       k:
+//         | "objective"
+//         | "diagnosis"
+//         | "treatment"
+//         | "activity"
+//         | "additionalNotes"
+//     ) => {
+//       if (!content) return;
+//       if (k === "objective")
+//         objective = objective ? `${objective} ${content}` : content;
+//       if (k === "diagnosis")
+//         diagnosis = diagnosis ? `${diagnosis} ${content}` : content;
+//       if (k === "treatment")
+//         treatment = treatment ? `${treatment} ${content}` : content;
+//       if (k === "activity")
+//         activity = activity ? `${activity} ${content}` : content;
+//       if (k === "additionalNotes")
+//         additionalNotes = additionalNotes
+//           ? `${additionalNotes} ${content}`
+//           : content;
+//       takenSpans.push([m!.index, bigRe.lastIndex]);
+//     };
+
+//     if (/objective|obj/.test(labelRaw)) assign("objective");
+//     else if (/diagnosis|dx/.test(labelRaw)) assign("diagnosis");
+//     else if (/treatment|tx|plan/.test(labelRaw)) assign("treatment");
+//     else if (/activity|homework|task/.test(labelRaw)) assign("activity");
+//     else if (/additional notes?|extra notes?/.test(labelRaw))
+//       assign("additionalNotes");
+//   }
+
+//   // Residual = anything not captured; if no sections detected, treat whole as objective
+//   let residual = t;
+//   if (takenSpans.length) {
+//     // remove captured spans from text (rough)
+//     let chars = t.split("");
+//     for (const [s, e] of takenSpans) {
+//       for (let i = s; i < e; i++) chars[i] = " ";
+//     }
+//     residual = cleanTranscript(chars.join(" ").replace(/\s+/g, " ").trim());
+//   } else {
+//     // No sections found—fallback: objective = all text
+//     objective = objective || t;
+//     residual = "";
+//   }
+
+//   // Final tidy
+//   // const tidy = (s: string) =>
+//   //   s
+//   //     .replace(/\s+/g, " ")
+//   //     .replace(/\s*([.?!])?$/, (m, p1) => (p1 ? p1 : "."))
+//   //     .trim();
+
+//   const tidy = (s: string) =>
+//     s
+//       .replace(/\s+/g, " ")
+//       .replace(/\s*$/, "") // do not force a single trailing period
+//       .trim();
+
+//   return {
+//     objective: objective ? tidy(objective) : "",
+//     diagnosis: diagnosis ? tidy(diagnosis) : "",
+//     treatment: treatment ? tidy(treatment) : "",
+//     activity: activity ? tidy(activity) : "",
+//     additionalNotes: additionalNotes ? tidy(additionalNotes) : "",
+//     residual: residual || "",
+//   };
+// }
+
 function parseStructuredFromText(raw: string) {
   if (!raw?.trim()) {
     return {
@@ -430,27 +582,18 @@ function parseStructuredFromText(raw: string) {
   // Normalize
   let t = cleanTranscript(raw).replace(/\s+/g, " ").trim();
 
-  // Common mishears (tune for your clinic)
+  // Common mishears
   const repl: [RegExp, string][] = [
-    /\bdiagno(?:sis|sed?)?\b/gi,
-    "diagnosis",
-    /\btx\b/gi,
-    "treatment",
-    /\bplan\b/gi,
-    "treatment",
-    /\bactivity\s+breath(?:ing)?\b/gi,
-    "activity breathing",
-    /\bhand?outs?\b/gi,
-    "handouts",
-  ].reduce<[RegExp, string][]>((acc, v, i, arr) => {
-    if (i % 2 === 0) acc.push([arr[i] as RegExp, arr[i + 1] as string]);
-    return acc;
-  }, []);
+    [/\bdiagno(?:sis|sed?)?\b/gi, "diagnosis"],
+    [/\btx\b/gi, "treatment"],
+    [/\bplan\b/gi, "treatment"],
+    [/\bactivity\s+breath(?:ing)?\b/gi, "activity breathing"],
+    [/\bhand?outs?\b/gi, "handouts"],
+  ];
   for (const [re, to] of repl) t = t.replace(re, to);
 
-  // Section cues (you can extend these)
+  // Section cues
   const cues = [
-    // label, regex group to match
     ["objective", "(?:objective|obj)"],
     ["diagnosis", "(?:diagnosis|dx)"],
     ["treatment", "(?:treatment|tx|plan)"],
@@ -458,17 +601,31 @@ function parseStructuredFromText(raw: string) {
     ["additionalNotes", "(?:additional notes?|extra notes?)"],
   ] as const;
 
-  // Build a regex to capture "label: content" OR "label ... content" style.
-  // We also allow phrases like "the objective of patient was ..." etc.
-  const labelPart = (g: string) =>
-    `(?:the\\s+)?${g}(?:\\s+of\\s+patient\\s+(?:was|is))?|${g}|${g}\\s*:?`;
+  const union = cues.map(([, g]) => g).join("|");
 
-  const bigRe = new RegExp(
-    `(?:^|\\.|;|,|\\n|\\r)\\s*(?<label>${cues
-      .map(([, g]) => labelPart(g))
-      .join("|")})\\s*(?<sep>:|-|is|was|are|\\s)?\\s*(?<content>[^.\\n\\r]+)`,
+  // 1) Find all labels with their spans
+  const labelRe = new RegExp(
+    `(?<full>(?:the\\s+)?(?:${union})(?:\\s+of\\s+patient\\s+(?:was|is))?|(?:${union}))\\s*(?::|-|is|was|are)?\\s*`,
     "gi"
   );
+
+  type Hit = { key: "objective"|"diagnosis"|"treatment"|"activity"|"additionalNotes"; start: number; after: number };
+  const hits: Hit[] = [];
+  let m: RegExpExecArray | null;
+
+  while ((m = labelRe.exec(t)) !== null) {
+    const labelText = (m.groups?.full || "").toLowerCase();
+
+    const choose = (): Hit["key"] => {
+      if (/(^|\b)(objective|obj)(\b|$)/.test(labelText)) return "objective";
+      if (/(^|\b)(diagnosis|dx)(\b|$)/.test(labelText)) return "diagnosis";
+      if (/(^|\b)(treatment|tx|plan)(\b|$)/.test(labelText)) return "treatment";
+      if (/(^|\b)(activity|homework|task)(\b|$)/.test(labelText)) return "activity";
+      return "additionalNotes";
+    };
+
+    hits.push({ key: choose(), start: m.index, after: labelRe.lastIndex });
+  }
 
   let objective = "";
   let diagnosis = "";
@@ -476,66 +633,42 @@ function parseStructuredFromText(raw: string) {
   let activity = "";
   let additionalNotes = "";
 
-  const takenSpans: [number, number][] = [];
+  // 2) For each label, take everything until the next label or end
+  const pieces: [number, number][] = [];
+  if (hits.length) {
+    for (let i = 0; i < hits.length; i++) {
+      const h = hits[i];
+      const end = i + 1 < hits.length ? hits[i + 1].start : t.length;
+      let content = t.slice(h.after, end).trim();
 
-  let m: RegExpExecArray | null;
-  while ((m = bigRe.exec(t)) !== null) {
-    const labelRaw = (m.groups?.label || "").toLowerCase();
-    const content = (m.groups?.content || "").trim();
+      // strip leading separators
+      content = content.replace(/^[.;,\-\s]+/, "").trim();
 
-    const assign = (
-      k:
-        | "objective"
-        | "diagnosis"
-        | "treatment"
-        | "activity"
-        | "additionalNotes"
-    ) => {
-      if (!content) return;
-      if (k === "objective")
-        objective = objective ? `${objective} ${content}` : content;
-      if (k === "diagnosis")
-        diagnosis = diagnosis ? `${diagnosis} ${content}` : content;
-      if (k === "treatment")
-        treatment = treatment ? `${treatment} ${content}` : content;
-      if (k === "activity")
-        activity = activity ? `${activity} ${content}` : content;
-      if (k === "additionalNotes")
-        additionalNotes = additionalNotes
-          ? `${additionalNotes} ${content}`
-          : content;
-      takenSpans.push([m!.index, bigRe.lastIndex]);
-    };
+      if (!content) continue;
+      if (h.key === "objective") objective = objective ? `${objective} ${content}` : content;
+      if (h.key === "diagnosis") diagnosis = diagnosis ? `${diagnosis} ${content}` : content;
+      if (h.key === "treatment") treatment = treatment ? `${treatment} ${content}` : content;
+      if (h.key === "activity") activity = activity ? `${activity} ${content}` : content;
+      if (h.key === "additionalNotes") additionalNotes = additionalNotes ? `${additionalNotes} ${content}` : content;
 
-    if (/objective|obj/.test(labelRaw)) assign("objective");
-    else if (/diagnosis|dx/.test(labelRaw)) assign("diagnosis");
-    else if (/treatment|tx|plan/.test(labelRaw)) assign("treatment");
-    else if (/activity|homework|task/.test(labelRaw)) assign("activity");
-    else if (/additional notes?|extra notes?/.test(labelRaw))
-      assign("additionalNotes");
+      pieces.push([h.start, end]);
+    }
+  } else {
+    // No sections found. treat whole as objective
+    objective = t;
   }
 
-  // Residual = anything not captured; if no sections detected, treat whole as objective
-  let residual = t;
-  if (takenSpans.length) {
-    // remove captured spans from text (rough)
-    let chars = t.split("");
-    for (const [s, e] of takenSpans) {
+  // Residual = text not assigned to any section
+  let residual = "";
+  if (pieces.length) {
+    const chars = t.split("");
+    for (const [s, e] of pieces) {
       for (let i = s; i < e; i++) chars[i] = " ";
     }
     residual = cleanTranscript(chars.join(" ").replace(/\s+/g, " ").trim());
-  } else {
-    // No sections found—fallback: objective = all text
-    objective = objective || t;
-    residual = "";
   }
 
-  // Final tidy
-  const tidy = (s: string) =>
-    s
-      .replace(/\s+/g, " ")
-      .replace(/\s*([.?!])?$/, (m, p1) => (p1 ? p1 : "."))
-      .trim();
+  const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
 
   return {
     objective: objective ? tidy(objective) : "",
@@ -546,6 +679,7 @@ function parseStructuredFromText(raw: string) {
     residual: residual || "",
   };
 }
+
 
 function PatientRecordInner() {
   const params = useParams<{ id: string }>();
@@ -768,12 +902,12 @@ function PatientRecordInner() {
     setLoading(true);
     try {
       const sum = await api(`api/patient-records/${patientId}/summary`, {
-        headers: authHeader(token || undefined),
+        headers: authHeader(token || undefined) as HeadersInit,
       }).catch(() => null);
       setSummary(sum || null);
 
       const res = await api(`api/patient-records/${patientId}`, {
-        headers: authHeader(token || undefined),
+        headers: authHeader(token || undefined) as HeadersInit,
       });
 
       const p = res?.patient ?? res?.record?.patient ?? null;
@@ -830,7 +964,7 @@ function PatientRecordInner() {
         headers: {
           ...authHeader(token || undefined),
           "Content-Type": "application/json",
-        },
+        } as HeadersInit,
         body: JSON.stringify(payload),
       });
 

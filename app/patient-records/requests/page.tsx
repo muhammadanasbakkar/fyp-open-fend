@@ -102,7 +102,7 @@ function RequestList() {
     try {
       const res = await api(`/patient-records/requests/incoming`, {
         headers: authHeader(token || undefined),
-      });
+      } as RequestInit);
       setData(res || []);
     } catch (e: any) {
       setErr(e.message || "Failed to load requests.");
@@ -128,7 +128,7 @@ function RequestList() {
         headers: {
           ...authHeader(token || undefined),
           "Content-Type": "application/json",
-        },
+        } as HeadersInit,
         body: JSON.stringify({ decision }),
       });
       setMsg(

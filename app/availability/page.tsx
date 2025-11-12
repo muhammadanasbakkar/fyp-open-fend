@@ -259,8 +259,8 @@ const DISPLAY_FMT = "ddd, MMM DD, YYYY hh:mm A"; // human-readable
 
 type Hospital = {
   // hospitals?: {
-    _id: string;
-    name: string;
+  _id: string;
+  name: string;
   // }[];
   // add other fields if your API returns them
 };
@@ -346,15 +346,18 @@ function Inner() {
       if (minutes < 15) throw new Error("Minimum length is 15 minutes.");
 
       if (!hospitalId) throw new Error("Please select a hospital/clinic.");
+      if (!token) throw new Error("Session expired. Please log in again.");
 
-      // send ISO strings so backend gets precise timestamps + hospital
       await api("api/availability", {
         method: "POST",
-        headers: authHeader(token || undefined),
+        headers: {
+          ...(authHeader(token) as HeadersInit), // Authorization: Bearer ...
+          "Content-Type": "application/json", // 🔥 important
+        },
         body: JSON.stringify({
           start: s.toISOString(),
           end: e.toISOString(),
-          hospital: hospitalId, // NEW
+          hospital: hospitalId, // your controller accepts hospitalId OR hospital
         }),
       });
 
@@ -375,7 +378,7 @@ function Inner() {
     try {
       await api(`/availability/${id}`, {
         method: "DELETE",
-        headers: authHeader(token || undefined),
+        headers: authHeader(token || undefined) as HeadersInit,
       });
       setMsg("Deleted.");
       await loadAvailability();
@@ -387,7 +390,7 @@ function Inner() {
   async function loadAvailability() {
     try {
       const res = await api("api/availability/me", {
-        headers: authHeader(token || undefined),
+        headers: authHeader(token || undefined) as HeadersInit,
       });
       setList((res || []) as AvailabilityItem[]);
     } catch (e: any) {
@@ -401,7 +404,7 @@ function Inner() {
     try {
       // Adjust this endpoint if your API differs (e.g., 'api/hospitals/me')
       const res = await api("api/public/hospitals", {
-        headers: authHeader(token || undefined),
+        headers: authHeader(token || undefined) as HeadersInit,
       });
       const arr = (res?.hospitals || []) as Hospital[];
       // console.log("Loaded hospitals:", arr);
