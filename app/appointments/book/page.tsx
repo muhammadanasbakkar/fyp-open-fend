@@ -2059,7 +2059,6 @@
 //   );
 // }
 
-
 // app/book/page.tsx
 "use client";
 
@@ -2542,7 +2541,11 @@ function BookPageInner() {
       setSelectedSlot(null);
       setMsg("Appointment booked ✅");
     } catch (e: any) {
-      if (String(e.message || "").toLowerCase().includes("code"))
+      if (
+        String(e.message || "")
+          .toLowerCase()
+          .includes("code")
+      )
         setOtpErr(e.message);
       else setErr(e.message || "Failed to verify / book");
     }
@@ -2657,11 +2660,7 @@ function BookPageInner() {
                     Link this appointment to referral
                   </label>
                 ) : referral.status === "pending-consent" ? (
-                  <Button
-
-                    onClick={giveConsent}
-                    disabled={consenting}
-                  >
+                  <Button onClick={giveConsent} disabled={consenting}>
                     {consenting ? "Saving…" : "Give consent to share summary"}
                   </Button>
                 ) : null}
@@ -3007,11 +3006,8 @@ function BookPageInner() {
                             <div>
                               Selected{" "}
                               <span className="font-medium">
-                                {dayjs(selectedSlot.start).format(
-                                  "ddd, MMM D"
-                                )}{" "}
-                                ·{" "}
-                                {dayjs(selectedSlot.start).format("HH:mm")}–
+                                {dayjs(selectedSlot.start).format("ddd, MMM D")}{" "}
+                                · {dayjs(selectedSlot.start).format("HH:mm")}–
                                 {dayjs(selectedSlot.end).format("HH:mm")} ({tz})
                               </span>
                             </div>
@@ -3036,9 +3032,7 @@ function BookPageInner() {
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button
-                              onClick={() => setSelectedSlot(null)}
-                            >
+                            <Button onClick={() => setSelectedSlot(null)}>
                               Change
                             </Button>
                             <Button
@@ -3123,8 +3117,24 @@ function BookPageInner() {
                 <Button
                   onClick={onSubmit}
                   disabled={
-                    posting || !therapistId || (mode === "in-person" && !hospitalId)
+                    posting ||
+                    !therapistId ||
+                    (mode === "in-person" && !hospitalId)
                   }
+                  className="
+    w-full
+    bg-blue-600 
+    hover:bg-blue-700 
+    text-white 
+    font-semibold 
+    py-3 
+    rounded-lg 
+    shadow-md 
+    transition 
+    duration-200 
+    disabled:opacity-60 
+    disabled:cursor-not-allowed
+  "
                 >
                   {posting ? "Booking…" : "Book appointment via email code"}
                 </Button>
@@ -3271,13 +3281,9 @@ function BookPageInner() {
                 onChange={(e) => setOtpCode(e.target.value)}
                 maxLength={6}
               />
-              {otpErr && (
-                <p className="mt-2 text-xs text-red-600">{otpErr}</p>
-              )}
+              {otpErr && <p className="mt-2 text-xs text-red-600">{otpErr}</p>}
               <div className="mt-4 flex justify-end gap-2">
-                <Button  onClick={() => setShowOtp(false)}>
-                  Cancel
-                </Button>
+                <Button onClick={() => setShowOtp(false)}>Cancel</Button>
                 <Button onClick={verifyOtpAndBook}>Verify & Book</Button>
               </div>
               <p className="mt-2 text-xs text-gray-500">

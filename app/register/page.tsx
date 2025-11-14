@@ -298,7 +298,6 @@
 //   );
 // }
 
-
 // app/register/page.tsx  (PATIENT REGISTRATION)
 "use client";
 
@@ -402,7 +401,9 @@ export default function RegisterPatientPage() {
               Create your TheraKonnect patient account
             </h1>
             <p className="text-sm text-slate-600">
-              You will receive a unique Patient ID that you can use, along with your password, to access your appointments and digital records securely.
+              You will receive a unique Patient ID that you can use, along with
+              your password, to access your appointments and digital records
+              securely.
             </p>
           </div>
 
@@ -411,9 +412,17 @@ export default function RegisterPatientPage() {
               Why we ask for your details
             </p>
             <ul className="mt-2 space-y-1">
-              <li>• Gender and date of birth help therapists understand your context.</li>
-              <li>• CNIC last 4 digits help uniquely match you while keeping your full CNIC private.</li>
-              <li>• Your password is encrypted and never shown back in plain text.</li>
+              <li>
+                • Gender and date of birth help therapists understand your
+                context.
+              </li>
+              <li>
+                • CNIC last 4 digits help uniquely match you while keeping your
+                full CNIC private.
+              </li>
+              <li>
+                • Your password is encrypted and never shown back in plain text.
+              </li>
             </ul>
           </div>
 
@@ -423,10 +432,7 @@ export default function RegisterPatientPage() {
               href="/login"
               className="font-medium text-[var(--brand,#4b7eff)] hover:underline"
             >
-              <b>
-
-              Log in here
-              </b>
+              <b>Log in here</b>
             </Link>
             .
           </p>
@@ -449,11 +455,14 @@ export default function RegisterPatientPage() {
                 <div className="text-sm text-emerald-900">
                   <p className="font-semibold">Registration successful</p>
                   <p className="mt-1">
-                    Your Patient ID has been generated. Keep it safe and do not share it publicly.
+                    Your Patient ID has been generated. Keep it safe and do not
+                    share it publicly.
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-emerald-800">Patient ID</span>
+                      <span className="text-xs text-emerald-800">
+                        Patient ID
+                      </span>
                       <code className="rounded-md bg-white px-2 py-1 text-xs font-mono text-slate-900 ring-1 ring-emerald-200">
                         {info.patientId}
                       </code>
@@ -461,7 +470,9 @@ export default function RegisterPatientPage() {
                     <button
                       type="button"
                       className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-                      onClick={() => navigator.clipboard.writeText(info.patientId!)}
+                      onClick={() =>
+                        navigator.clipboard.writeText(info.patientId!)
+                      }
                     >
                       Copy ID
                     </button>
@@ -601,13 +612,17 @@ export default function RegisterPatientPage() {
                     <div className="flex h-1.5 overflow-hidden rounded-full bg-slate-100">
                       <span
                         className={`transition-all ${
-                          Object.values(passwordRules).filter(Boolean).length === 0
+                          Object.values(passwordRules).filter(Boolean)
+                            .length === 0
                             ? "w-0"
-                            : Object.values(passwordRules).filter(Boolean).length <= 2
+                            : Object.values(passwordRules).filter(Boolean)
+                                .length <= 2
                             ? "w-1/4 bg-red-400"
-                            : Object.values(passwordRules).filter(Boolean).length === 3
+                            : Object.values(passwordRules).filter(Boolean)
+                                .length === 3
                             ? "w-2/4 bg-amber-400"
-                            : Object.values(passwordRules).filter(Boolean).length === 4
+                            : Object.values(passwordRules).filter(Boolean)
+                                .length === 4
                             ? "w-3/4 bg-lime-400"
                             : "w-full bg-emerald-500"
                         }`}
@@ -615,10 +630,22 @@ export default function RegisterPatientPage() {
                     </div>
 
                     <div className="grid gap-1.5 text-[11px] text-slate-600 sm:grid-cols-2">
-                      <RuleChip ok={passwordRules.length} label="At least 8 characters" />
-                      <RuleChip ok={passwordRules.upper} label="Uppercase letter (A-Z)" />
-                      <RuleChip ok={passwordRules.lower} label="Lowercase letter (a-z)" />
-                      <RuleChip ok={passwordRules.number} label="Number (0-9)" />
+                      <RuleChip
+                        ok={passwordRules.length}
+                        label="At least 8 characters"
+                      />
+                      <RuleChip
+                        ok={passwordRules.upper}
+                        label="Uppercase letter (A-Z)"
+                      />
+                      <RuleChip
+                        ok={passwordRules.lower}
+                        label="Lowercase letter (a-z)"
+                      />
+                      <RuleChip
+                        ok={passwordRules.number}
+                        label="Number (0-9)"
+                      />
                       <RuleChip
                         ok={passwordRules.special}
                         label="Special character (! @ # $ etc)"
@@ -629,14 +656,28 @@ export default function RegisterPatientPage() {
               </div>
 
               <Button
-                className="mt-4 w-full"
+                className="
+    w-full
+    bg-blue-600 
+    hover:bg-blue-700 
+    text-white 
+    font-semibold 
+    py-3 
+    rounded-lg 
+    shadow-md 
+    transition 
+    duration-200 
+    disabled:opacity-60 
+    disabled:cursor-not-allowed
+  "
                 disabled={loading || !isPasswordValid}
               >
                 {loading ? "Creating..." : "Create patient account"}
               </Button>
 
               <p className="mt-3 text-[11px] text-slate-500 text-center">
-                By creating an account, you confirm that your details are correct and give consent to store your digital records securely.
+                By creating an account, you confirm that your details are
+                correct and give consent to store your digital records securely.
               </p>
             </form>
           )}
@@ -665,7 +706,11 @@ function RuleChip({ ok, label }: { ok: boolean; label: string }) {
           : "bg-slate-50 text-slate-500 border border-slate-100"
       }`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-500" : "bg-slate-300"}`} />
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          ok ? "bg-emerald-500" : "bg-slate-300"
+        }`}
+      />
       <span>{label}</span>
     </div>
   );

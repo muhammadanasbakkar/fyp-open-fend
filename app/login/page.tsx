@@ -173,7 +173,6 @@
 //   );
 // }
 
-
 // app/login/page.tsx
 "use client";
 import { useState } from "react";
@@ -236,7 +235,8 @@ export default function LoginPage() {
               Welcome back to TheraKonnect
             </h1>
             <p className="text-sm text-slate-600">
-              Sign in as a patient using your Patient ID and password, or as a staff member using your clinic email.
+              Sign in as a patient using your Patient ID and password, or as a
+              staff member using your clinic email.
             </p>
           </div>
 
@@ -245,9 +245,18 @@ export default function LoginPage() {
               Tips for a smooth login
             </p>
             <ul className="mt-2 space-y-1">
-              <li>• Patient ID looks like PT-0000-12345678 or the format your clinic shared.</li>
-              <li>• Staff should use the official clinic email registered by a superAdmin.</li>
-              <li>• If you can not sign in, try resetting your password or contact your clinic team.</li>
+              <li>
+                • Patient ID looks like PT-0000-12345678 or the format your
+                clinic shared.
+              </li>
+              <li>
+                • Staff should use the official clinic email registered by a
+                superAdmin.
+              </li>
+              <li>
+                • If you can not sign in, try resetting your password or contact
+                your clinic team.
+              </li>
             </ul>
           </div>
 
@@ -324,13 +333,14 @@ export default function LoginPage() {
                       Patient ID
                     </label>
                     <Input
-                      placeholder="e.g. P-000123"
+                      placeholder="PT-1234-12345678"
                       value={patientId}
                       onChange={(e) => setPatientId(e.target.value)}
                       required
                     />
                     <p className="mt-1 text-[11px] text-slate-400">
-                      The ID you received when you registered, or from your clinic.
+                      The ID you received when you registered, or from your
+                      clinic.
                     </p>
                   </div>
 
@@ -402,8 +412,25 @@ export default function LoginPage() {
               )}
 
               <Button
-                disabled={loading || (mode === "patient" && !patientId) || (mode === "staff" && !email)}
-                className="w-full"
+                disabled={
+                  loading ||
+                  (mode === "patient" && !patientId) ||
+                  (mode === "staff" && !email)
+                }
+                className="
+    w-full
+    bg-blue-600 
+    hover:bg-blue-700 
+    text-white 
+    font-semibold 
+    py-3 
+    rounded-lg 
+    shadow-md 
+    transition 
+    duration-200 
+    disabled:opacity-60 
+    disabled:cursor-not-allowed
+  "
               >
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
@@ -412,20 +439,20 @@ export default function LoginPage() {
 
           {/* Secondary links */}
           <div className="mt-6 space-y-2 text-center text-sm text-slate-600">
-            <p>
-              New here?{" "}
+            <p className="mt-4 text-center text-sm text-gray-600">
+              Need a new account?{" "}
               <Link
-                href="/register"
-                className="font-medium text-[var(--brand,#4b7eff)] hover:underline"
+                href="/register?mode=patient"
+                className="font-bold text-[var(--brand,#2563eb)] hover:underline"
               >
                 Create a patient account
               </Link>
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="mt-3 text-center text-xs text-slate-500">
               Need a staff account?{" "}
               <Link
                 href="/register/staff"
-                className="text-[var(--brand,#4b7eff)] hover:underline"
+                className="font-bold text-[var(--brand,#2563eb)] hover:underline"
               >
                 Register as therapist or receptionist
               </Link>

@@ -453,7 +453,6 @@
 // //   );
 // // }
 
-
 // "use client";
 // import { useEffect, useMemo, useState } from "react";
 // import Link from "next/link";
@@ -1010,7 +1009,6 @@
 //   );
 // }
 
-
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -1029,10 +1027,40 @@ type Hospital = {
   address?: string;
 };
 
-const MODALITIES = ["CBT","DBT","EMDR","ACT","Mindfulness","Psychodynamic","Solution-Focused"];
-const CONCERNS = ["Anxiety","Depression","OCD","ADHD","PTSD & Trauma","Sleep Issues","Grief","Stress"];
-const POPULATIONS = ["Individual","Couples","Family","Child & Adolescent","Group Therapy","Geriatric","LGBTQ+ Affirming"];
-const CARE = ["Online (Teletherapy)","In-Person","Psych Assessments","Workshops"];
+const MODALITIES = [
+  "CBT",
+  "DBT",
+  "EMDR",
+  "ACT",
+  "Mindfulness",
+  "Psychodynamic",
+  "Solution-Focused",
+];
+const CONCERNS = [
+  "Anxiety",
+  "Depression",
+  "OCD",
+  "ADHD",
+  "PTSD & Trauma",
+  "Sleep Issues",
+  "Grief",
+  "Stress",
+];
+const POPULATIONS = [
+  "Individual",
+  "Couples",
+  "Family",
+  "Child & Adolescent",
+  "Group Therapy",
+  "Geriatric",
+  "LGBTQ+ Affirming",
+];
+const CARE = [
+  "Online (Teletherapy)",
+  "In-Person",
+  "Psych Assessments",
+  "Workshops",
+];
 
 // Helpers, formatters and regex
 const CNIC_REGEX = /^\d{5}-\d{7}-\d{1}$/;
@@ -1252,9 +1280,7 @@ export default function RegisterStaffPage() {
           fd.append("certificationFiles", f)
         );
 
-        selectedHospitals.forEach((id) =>
-          fd.append("affiliatedHospitals", id)
-        );
+        selectedHospitals.forEach((id) => fd.append("affiliatedHospitals", id));
         if (primaryHospital) fd.set("primaryHospital", primaryHospital);
 
         fd.set("feesCurrency", feesCurrency);
@@ -1309,7 +1335,8 @@ export default function RegisterStaffPage() {
               Register a staff account
             </h1>
             <p className="mt-2 max-w-xl text-sm text-slate-600">
-              Complete the form below. A superAdmin will review your details and approve your access before you can sign in.
+              Complete the form below. A superAdmin will review your details and
+              approve your access before you can sign in.
             </p>
           </div>
 
@@ -1321,7 +1348,9 @@ export default function RegisterStaffPage() {
               <li>• Valid clinic or professional email</li>
               <li>• CNIC and phone in correct formats</li>
               <li>• Profile photo, required for identity</li>
-              {therapist && <li>• License details and certifications for therapists</li>}
+              {therapist && (
+                <li>• License details and certifications for therapists</li>
+              )}
             </ul>
           </div>
         </div>
@@ -1419,7 +1448,9 @@ export default function RegisterStaffPage() {
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-[var(--brand,#4b7eff)] hover:underline"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
@@ -1490,7 +1521,8 @@ export default function RegisterStaffPage() {
                     required
                   />
                   <p className="mt-1 text-[11px] text-slate-500">
-                    Enter your CNIC without spaces. Format will be applied automatically.
+                    Enter your CNIC without spaces. Format will be applied
+                    automatically.
                   </p>
                 </div>
               </div>
@@ -1503,7 +1535,8 @@ export default function RegisterStaffPage() {
                 <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                   <p className="text-sm font-medium text-slate-900">Pricing</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Set standard online and in person fees, with optional per clinic overrides.
+                    Set standard online and in person fees, with optional per
+                    clinic overrides.
                   </p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <div>
@@ -1634,9 +1667,7 @@ export default function RegisterStaffPage() {
                       title="Care settings"
                       items={CARE}
                       values={careSettings}
-                      onToggle={(v) =>
-                        toggle(careSettings, setCareSettings, v)
-                      }
+                      onToggle={(v) => toggle(careSettings, setCareSettings, v)}
                     />
                   </div>
 
@@ -1659,7 +1690,8 @@ export default function RegisterStaffPage() {
                       className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
-                      Upload clear photos or scans of your licenses and certifications.
+                      Upload clear photos or scans of your licenses and
+                      certifications.
                     </p>
                   </div>
                 </div>
@@ -1672,7 +1704,8 @@ export default function RegisterStaffPage() {
                         Clinics and hospitals
                       </p>
                       <p className="text-xs text-slate-500">
-                        Select where you practice and set optional fee overrides.
+                        Select where you practice and set optional fee
+                        overrides.
                       </p>
                     </div>
                     <Input
@@ -1787,7 +1820,8 @@ export default function RegisterStaffPage() {
                 Profile photo <span className="text-red-600">*</span>
               </p>
               <p className="mb-3 text-xs text-slate-500">
-                Your photo helps patients and admins verify they are viewing the correct profile.
+                Your photo helps patients and admins verify they are viewing the
+                correct profile.
               </p>
 
               {profilePreview ? (
@@ -1822,7 +1856,23 @@ export default function RegisterStaffPage() {
 
             {/* Submit card */}
             <div className="rounded-2xl border border-slate-100 bg-white/90 p-6 shadow-sm backdrop-blur">
-              <Button className="w-full" disabled={loading}>
+              <Button
+                className="
+    w-full
+    bg-blue-600 
+    hover:bg-blue-700 
+    text-white 
+    font-semibold 
+    py-3 
+    rounded-lg 
+    shadow-md 
+    transition 
+    duration-200 
+    disabled:opacity-60 
+    disabled:cursor-not-allowed
+  "
+                disabled={loading}
+              >
                 {loading ? "Submitting..." : "Submit for approval"}
               </Button>
               <p className="mt-3 text-center text-sm text-slate-600">
@@ -1835,7 +1885,8 @@ export default function RegisterStaffPage() {
                 </Link>
               </p>
               <p className="mt-2 text-center text-xs text-slate-500">
-                Admins review new staff accounts before they can access patient data and appointments.
+                Admins review new staff accounts before they can access patient
+                data and appointments.
               </p>
             </div>
           </aside>
