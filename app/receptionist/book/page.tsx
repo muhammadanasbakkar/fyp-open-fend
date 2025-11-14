@@ -19,8 +19,8 @@ export default function ReceptionistBookingPage() {
     async function fetchTherapists() {
       try {
         const res = await api("/patient-records/therapists/available", {
-          headers: authHeader(token || undefined),
-        });
+          headers: authHeader(token || undefined) as HeadersInit,
+        } );
         setTherapists(res);
       } catch (e: any) {
         setErr(e.message);

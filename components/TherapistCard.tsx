@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 
 export type TherapistCardProps = {
@@ -12,9 +13,16 @@ export type TherapistCardProps = {
 };
 
 export default function TherapistCard({
-  _id, name, profilePicture, specializations = [], yearsExperience = 0, fees
+  _id,
+  name,
+  profilePicture,
+  specializations = [],
+  yearsExperience = 0,
+  fees,
 }: TherapistCardProps) {
-  const tag = yearsExperience ? `${yearsExperience} yrs experience` : "Therapist";
+  const tag = yearsExperience
+    ? `${yearsExperience} yrs experience`
+    : "Therapist";
   const fee =
     fees?.currency && (fees.online || fees.inPerson)
       ? `${fees.currency} ${fees.online ?? fees.inPerson} / session`
@@ -27,10 +35,13 @@ export default function TherapistCard({
     >
       <div className="p-4 flex gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={profilePicture || "/default-avatar.png"}
+        <Image
+          src={process.env.NEXT_PUBLIC_CDN_BASE! + profilePicture}
           alt={name}
           className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200"
+          width={64}
+          height={64}
+          // unoptimized
         />
         <div className="min-w-0">
           <div className="text-sm font-semibold truncate">{name}</div>

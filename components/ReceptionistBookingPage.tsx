@@ -19,7 +19,7 @@ export default function ReceptionistBookingPage() {
     async function fetchTherapists() {
       try {
         const res = await api("api/therapists/available", {
-          headers: authHeader(token || undefined),
+          headers: authHeader(token || undefined) as HeadersInit,
         });
         setTherapists(res?.items || []);
       } catch (e: any) {

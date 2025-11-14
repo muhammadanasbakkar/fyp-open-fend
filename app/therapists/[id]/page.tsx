@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { publicApi } from "@/lib/publicApi";
 import Link from "next/link";
 import dayjs from "dayjs";
+import Image from "next/image";
 
 type Fees = { currency?: string; online?: number; inPerson?: number } | null;
 
@@ -79,10 +80,13 @@ export default function TherapistProfilePage() {
           {/* Header */}
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm flex items-start gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={therapist.profilePicture || "/default-avatar.png"}
+            <Image
+              src={process.env.NEXT_PUBLIC_CDN_BASE! + therapist.profilePicture || "/default-avatar.png"}
               alt={therapist.name}
               className="h-24 w-24 rounded-2xl object-cover ring-1 ring-gray-200"
+              width={96}
+              height={96}
+              // unoptimized
             />
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold">{therapist.name}</h1>

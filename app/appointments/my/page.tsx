@@ -421,6 +421,399 @@
 //   );
 // }
 
+// // app/appointments/my/page.tsx
+// "use client";
+// import Protected from "@/components/Protected";
+// import { useEffect, useMemo, useState } from "react";
+// import Link from "next/link";
+// import Input from "@/components/Input";
+// import Button from "@/components/Button";
+// import { api, authHeader } from "@/lib/api";
+// import { useAuth } from "@/lib/auth";
+
+// // type Appt = {
+// //   _id: string;
+// //   start: string;
+// //   end: string;
+// //   status: "pending" | "confirmed" | "cancelled" | "completed" | string;
+// //   therapist?: { _id: string; name: string } | string;
+// //   patient?: { _id: string; name: string } | string;
+// //   createdAt?: string;
+// // };
+
+// type Appt = {
+//   _id: string;
+//   start: string;
+//   end: string;
+//   status: "pending" | "confirmed" | "cancelled" | "completed" | string;
+//   mode?: "in-person" | "online" | string;
+//   meetingLink?: string;
+//   therapist?: { _id: string; name: string } | string;
+//   patient?: { _id: string; name: string } | string;
+//   createdAt?: string;
+// };
+
+// export default function MyAppointmentsPage() {
+//   return (
+//     <Protected>
+//       <List />
+//     </Protected>
+//   );
+// }
+
+// function fmt(dt: string | Date) {
+//   const d = new Date(dt);
+//   return d.toLocaleString(undefined, {
+//     weekday: "short",
+//     month: "short",
+//     day: "2-digit",
+//     hour: "2-digit",
+//     minute: "2-digit",
+//   });
+// }
+// function fmtTime(dt: string | Date) {
+//   const d = new Date(dt);
+//   return d.toLocaleTimeString(undefined, {
+//     hour: "2-digit",
+//     minute: "2-digit",
+//   });
+// }
+
+// function StatusBadge({ status }: { status: Appt["status"] }) {
+//   const map: Record<string, string> = {
+//     pending: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+//     confirmed: "bg-green-50 text-green-700 ring-1 ring-green-200",
+//     cancelled: "bg-red-50 text-red-700 ring-1 ring-red-200",
+//     completed: "bg-gray-100 text-gray-700 ring-1 ring-gray-200",
+//   };
+//   const klass = map[status] || "bg-gray-100 text-gray-700 ring-1 ring-gray-200";
+//   return (
+//     <span
+//       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${klass}`}
+//     >
+//       {status.charAt(0).toUpperCase() + status.slice(1)}
+//     </span>
+//   );
+// }
+
+// function List() {
+//   const { token, user } = useAuth();
+//   const role = user?.role;
+//   const [data, setData] = useState<Appt[]>([]);
+//   const [err, setErr] = useState("");
+//   const [msg, setMsg] = useState("");
+//   const [loadingList, setLoadingList] = useState(true);
+//   const [actingId, setActingId] = useState<string | null>(null);
+//   const [q, setQ] = useState(""); // local search
+
+//   async function load() {
+//     setErr("");
+//     setMsg("");
+//     setLoadingList(true);
+//     try {
+//       const res = await api("api/appointments/my", {
+//         headers: authHeader(token || undefined),
+//       } as RequestInit);
+//       setData(Array.isArray(res) ? res : []);
+//     } catch (e: any) {
+//       setErr(e.message || "Failed to load appointments.");
+//     } finally {
+//       setLoadingList(false);
+//     }
+//   }
+
+//   async function sendVideoLink(id: string) {
+//     if (!token) {
+//       setErr("Session expired. Please log in again.");
+//       return;
+//     }
+
+//     setErr("");
+//     setMsg("");
+
+//     // simple UI: prompt therapist for link (optional)
+//     const link = window.prompt(
+//       "Enter video meeting link (leave blank to auto-generate):"
+//     );
+
+//     setActingId(id);
+//     try {
+//       const res = await api(`api/appointments/${id}/send-link`, {
+//         method: "POST",
+//         headers: {
+//           ...authHeader(token || undefined),
+//           "Content-Type": "application/json",
+//         } as HeadersInit,
+//         body: JSON.stringify({
+//           meetingLink: link && link.trim() ? link.trim() : undefined,
+//         }),
+//       });
+
+//       // update local state with new meetingLink
+//       setData((prev) =>
+//         prev.map((a) =>
+//           a._id === id ? { ...a, meetingLink: res.meetingLink } : a
+//         )
+//       );
+
+//       setMsg("Video link sent to patient.");
+//     } catch (e: any) {
+//       setErr(e.message || "Could not send video link.");
+//     } finally {
+//       setActingId(null);
+//     }
+//   }
+
+//   useEffect(() => {
+//     if (!token) return;
+//     load();
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [token]);
+
+//   // Generic helper: update status → backend will send emails
+//   async function updateStatus(id: string, status: "confirmed" | "cancelled") {
+//     if (!token) {
+//       setErr("Session expired. Please log in again.");
+//       return;
+//     }
+
+//     setErr("");
+//     setMsg("");
+//     setActingId(id);
+
+//     try {
+//       const res = await api(`api/appointments/${id}/status`, {
+//         method: "PATCH",
+//         headers: {
+//           ...(token ? authHeader(token) : {}),
+//           "Content-Type": "application/json",
+//         } as HeadersInit,
+//         body: JSON.stringify({ status }),
+//       });
+
+//       const newStatus = res?.appointment?.status || res?.status || status;
+
+//       setData((prev) =>
+//         prev.map((a) => (a._id === id ? { ...a, status: newStatus } : a))
+//       );
+
+//       setMsg(
+//         newStatus === "confirmed"
+//           ? "Appointment confirmed. Patient will receive an email."
+//           : "Appointment cancelled. Patient will receive an email."
+//       );
+//     } catch (e: any) {
+//       setErr(e.message || "Could not update appointment status.");
+//     } finally {
+//       setActingId(null);
+//     }
+//   }
+
+//   async function confirmAppt(id: string) {
+//     await updateStatus(id, "confirmed");
+//   }
+
+//   async function cancelAppt(id: string) {
+//     if (!confirm("Cancel this appointment?")) return;
+//     await updateStatus(id, "cancelled");
+//   }
+
+//   // search & sort
+//   const filtered = useMemo(() => {
+//     const term = q.trim().toLowerCase();
+//     if (!term) return data;
+//     return data.filter((a: any) => {
+//       const t =
+//         typeof a.therapist === "object" ? a.therapist : a.therapist?.name || "";
+//       const p =
+//         typeof a.patient === "object" ? a.patient : a.patient?.name || "";
+//       return t.toLowerCase().includes(term) || p.toLowerCase().includes(term);
+//     });
+//   }, [q, data]);
+
+//   const sorted = useMemo(
+//     () => [...filtered].sort((a, b) => +new Date(a.start) - +new Date(b.start)),
+//     [filtered]
+//   );
+
+//   console.log(sorted, "sorted");
+
+//   return (
+//     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 space-y-6">
+//       <div className="flex flex-wrap items-end justify-between gap-3">
+//         <div>
+//           <h1 className="text-2xl font-semibold">My appointments</h1>
+//           <p className="mt-1 text-sm text-gray-600">
+//             Manage upcoming and past sessions.
+//           </p>
+//         </div>
+//         <div className="w-full sm:w-64">
+//           <Input
+//             placeholder="Search by therapist or patient"
+//             value={q}
+//             onChange={(e) => setQ(e.target.value)}
+//           />
+//         </div>
+//       </div>
+
+//       {err && (
+//         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+//           {err}
+//         </div>
+//       )}
+//       {msg && (
+//         <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+//           {msg}
+//         </div>
+//       )}
+
+//       {loadingList && (
+//         <div className="space-y-3">
+//           {Array.from({ length: 4 }).map((_, i) => (
+//             <div
+//               key={i}
+//               className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4"
+//             >
+//               <div className="h-4 w-52 rounded bg-gray-200" />
+//               <div className="mt-2 h-3 w-72 rounded bg-gray-200" />
+//               <div className="mt-3 h-8 w-40 rounded bg-gray-200" />
+//             </div>
+//           ))}
+//         </div>
+//       )}
+
+//       {!loadingList && !sorted.length && (
+//         <div className="rounded-2xl border border-gray-100 bg-white p-6 text-sm text-gray-600">
+//           No appointments yet.
+//         </div>
+//       )}
+//       {!loadingList && !sorted.length && (
+//         <div className="rounded-2xl border border-gray-100 bg-white p-6 text-sm text-gray-600">
+//           No appointments yet.
+//         </div>
+//       )}
+
+//       {!loadingList && !!sorted.length && (
+//         <div className="space-y-3">
+//           {sorted.map((a) => {
+//             const isPending = a.status === "pending";
+//             const isActing = actingId === a._id;
+
+//             const therapistName =
+//               typeof a.therapist === "string" ? a.therapist : a.therapist?.name;
+//             const patientName =
+//               typeof a.patient === "string" ? a.patient : a.patient?.name;
+
+//             return (
+//               <div
+//                 key={a._id}
+//                 className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+//               >
+//                 {/* Header & basic info */}
+//                 <div className="flex flex-wrap items-start justify-between gap-3">
+//                   <div className="min-w-0">
+//                     <p className="font-medium">
+//                       {fmt(a.start)} <span className="text-gray-400">→</span>{" "}
+//                       {fmtTime(a.end)}
+//                     </p>
+//                     <p className="text-sm text-gray-600 mt-1">
+//                       Therapist:{" "}
+//                       <span className="font-medium text-gray-800">
+//                         {therapistName}
+//                       </span>
+//                     </p>
+//                     <p className="text-sm text-gray-600">
+//                       Patient:{" "}
+//                       <span className="font-medium text-gray-800">
+//                         {patientName}
+//                       </span>
+//                     </p>
+//                     {a.mode && (
+//                       <p className="mt-1 text-xs text-gray-500">
+//                         Mode:{" "}
+//                         <span className="capitalize">
+//                           {a.mode === "online" ? "Online" : "In-person"}
+//                         </span>
+//                       </p>
+//                     )}
+//                   </div>
+
+//                   <div className="flex items-center gap-2">
+//                     <StatusBadge status={a.status} />
+//                     {role === "therapist" && a.patient && (
+//                       <Link
+//                         href={`/patient-records/${
+//                           (a.patient as any)?._id || a.patient
+//                         }`}
+//                         className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
+//                         title="Open patient records"
+//                         prefetch={false}
+//                       >
+//                         Notes
+//                       </Link>
+//                     )}
+//                   </div>
+//                 </div>
+
+//                 {/* Actions for pending */}
+//                 {isPending && (
+//                   <div className="mt-3 flex gap-2">
+//                     <Button
+//                       onClick={() => confirmAppt(a._id)}
+//                       disabled={isActing}
+//                     >
+//                       {isActing ? "Working…" : "Confirm"}
+//                     </Button>
+//                     <button
+//                       onClick={() => cancelAppt(a._id)}
+//                       disabled={isActing}
+//                       className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+//                     >
+//                       Cancel
+//                     </button>
+//                   </div>
+//                 )}
+
+//                 {/* Video link action for therapists on confirmed online appts */}
+//                 {role === "therapist" &&
+//                   a.status === "confirmed" &&
+//                   a.mode === "online" && (
+//                     <div className="mt-3 flex flex-wrap items-center gap-2">
+//                       <Button
+//                         onClick={() => sendVideoLink(a._id)}
+//                         disabled={isActing}
+//                       >
+//                         {a.meetingLink
+//                           ? isActing
+//                             ? "Sending…"
+//                             : "Resend video link"
+//                           : isActing
+//                           ? "Sending…"
+//                           : "Send video link"}
+//                       </Button>
+
+//                       {a.meetingLink && (
+//                         <a
+//                           href={a.meetingLink}
+//                           target="_blank"
+//                           rel="noreferrer"
+//                           className="text-xs text-[var(--brand,#4b7eff)] underline"
+//                         >
+//                           Open current link
+//                         </a>
+//                       )}
+//                     </div>
+//                   )}
+//               </div>
+//             );
+//           })}
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+
+
 // app/appointments/my/page.tsx
 "use client";
 import Protected from "@/components/Protected";
@@ -430,16 +823,6 @@ import Input from "@/components/Input";
 import Button from "@/components/Button";
 import { api, authHeader } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-
-// type Appt = {
-//   _id: string;
-//   start: string;
-//   end: string;
-//   status: "pending" | "confirmed" | "cancelled" | "completed" | string;
-//   therapist?: { _id: string; name: string } | string;
-//   patient?: { _id: string; name: string } | string;
-//   createdAt?: string;
-// };
 
 type Appt = {
   _id: string;
@@ -486,12 +869,29 @@ function StatusBadge({ status }: { status: Appt["status"] }) {
     cancelled: "bg-red-50 text-red-700 ring-1 ring-red-200",
     completed: "bg-gray-100 text-gray-700 ring-1 ring-gray-200",
   };
-  const klass = map[status] || "bg-gray-100 text-gray-700 ring-1 ring-gray-200";
+  const klass =
+    map[status] || "bg-gray-100 text-gray-700 ring-1 ring-gray-200";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${klass}`}
     >
       {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
+
+function ModeBadge({ mode }: { mode?: Appt["mode"] }) {
+  if (!mode) return null;
+  const isOnline = mode === "online";
+  const klass = isOnline
+    ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
+    : "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${klass}`}
+    >
+      {isOnline ? "💻 Online" : "🏥 In person"}
     </span>
   );
 }
@@ -504,7 +904,7 @@ function List() {
   const [msg, setMsg] = useState("");
   const [loadingList, setLoadingList] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
-  const [q, setQ] = useState(""); // local search
+  const [q, setQ] = useState("");
 
   async function load() {
     setErr("");
@@ -531,9 +931,8 @@ function List() {
     setErr("");
     setMsg("");
 
-    // simple UI: prompt therapist for link (optional)
     const link = window.prompt(
-      "Enter video meeting link (leave blank to auto-generate):"
+      "Enter video meeting link (leave blank to auto generate):"
     );
 
     setActingId(id);
@@ -549,7 +948,6 @@ function List() {
         }),
       });
 
-      // update local state with new meetingLink
       setData((prev) =>
         prev.map((a) =>
           a._id === id ? { ...a, meetingLink: res.meetingLink } : a
@@ -570,7 +968,6 @@ function List() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Generic helper: update status → backend will send emails
   async function updateStatus(id: string, status: "confirmed" | "cancelled") {
     if (!token) {
       setErr("Session expired. Please log in again.");
@@ -618,197 +1015,271 @@ function List() {
     await updateStatus(id, "cancelled");
   }
 
-  // search & sort
+  // search and sort
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return data;
+
     return data.filter((a: any) => {
-      const t =
-        typeof a.therapist === "object" ? a.therapist : a.therapist?.name || "";
-      const p =
-        typeof a.patient === "object" ? a.patient : a.patient?.name || "";
-      return t.toLowerCase().includes(term) || p.toLowerCase().includes(term);
+      let tName = "";
+      if (typeof a.therapist === "string") {
+        tName = a.therapist;
+      } else if (a.therapist && typeof a.therapist === "object") {
+        tName = a.therapist.name || "";
+      }
+
+      let pName = "";
+      if (typeof a.patient === "string") {
+        pName = a.patient;
+      } else if (a.patient && typeof a.patient === "object") {
+        pName = a.patient.name || "";
+      }
+
+      return (
+        tName.toLowerCase().includes(term) ||
+        pName.toLowerCase().includes(term)
+      );
     });
   }, [q, data]);
 
   const sorted = useMemo(
-    () => [...filtered].sort((a, b) => +new Date(a.start) - +new Date(b.start)),
+    () =>
+      [...filtered].sort(
+        (a, b) => +new Date(a.start) - +new Date(b.start)
+      ),
     [filtered]
   );
 
-  console.log(sorted, "sorted");
+  const now = Date.now();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">My appointments</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Manage upcoming and past sessions.
-          </p>
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-white to-gray-50">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 space-y-6">
+        {/* Header */}
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-[var(--brand,#4b7eff)]/5 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[var(--brand,#4b7eff)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand,#4b7eff)]" />
+              Appointments
+            </p>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+              My appointments
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Review upcoming and past sessions. manage status and video links.
+            </p>
+          </div>
+          <div className="w-full sm:w-64">
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              Search
+            </label>
+            <Input
+              placeholder="Search by therapist or patient"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="w-full sm:w-64">
-          <Input
-            placeholder="Search by therapist or patient"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
-      </div>
 
-      {err && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {err}
-        </div>
-      )}
-      {msg && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {msg}
-        </div>
-      )}
+        {/* Alerts */}
+        {err && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {err}
+          </div>
+        )}
+        {msg && (
+          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {msg}
+          </div>
+        )}
 
-      {loadingList && (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4"
-            >
-              <div className="h-4 w-52 rounded bg-gray-200" />
-              <div className="mt-2 h-3 w-72 rounded bg-gray-200" />
-              <div className="mt-3 h-8 w-40 rounded bg-gray-200" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!loadingList && !sorted.length && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 text-sm text-gray-600">
-          No appointments yet.
-        </div>
-      )}
-      {!loadingList && !sorted.length && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 text-sm text-gray-600">
-          No appointments yet.
-        </div>
-      )}
-
-      {!loadingList && !!sorted.length && (
-        <div className="space-y-3">
-          {sorted.map((a) => {
-            const isPending = a.status === "pending";
-            const isActing = actingId === a._id;
-
-            const therapistName =
-              typeof a.therapist === "string" ? a.therapist : a.therapist?.name;
-            const patientName =
-              typeof a.patient === "string" ? a.patient : a.patient?.name;
-
-            return (
+        {/* Skeleton */}
+        {loadingList && (
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div
-                key={a._id}
-                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                key={i}
+                className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4"
               >
-                {/* Header & basic info */}
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {fmt(a.start)} <span className="text-gray-400">→</span>{" "}
-                      {fmtTime(a.end)}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Therapist:{" "}
-                      <span className="font-medium text-gray-800">
-                        {therapistName}
-                      </span>
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Patient:{" "}
-                      <span className="font-medium text-gray-800">
-                        {patientName}
-                      </span>
-                    </p>
-                    {a.mode && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Mode:{" "}
-                        <span className="capitalize">
-                          {a.mode === "online" ? "Online" : "In-person"}
-                        </span>
+                <div className="h-4 w-52 rounded bg-gray-200" />
+                <div className="mt-2 h-3 w-72 rounded bg-gray-200" />
+                <div className="mt-3 h-8 w-40 rounded bg-gray-200" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loadingList && !sorted.length && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-600">
+            <p className="font-medium text-gray-800">
+              You do not have any appointments yet.
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              New bookings will appear here. including status and video details.
+            </p>
+          </div>
+        )}
+
+        {/* List */}
+        {!loadingList && !!sorted.length && (
+          <div className="space-y-3">
+            {sorted.map((a) => {
+              const isPending = a.status === "pending";
+              const isActing = actingId === a._id;
+              const startTime = new Date(a.start).getTime();
+              const isPast = startTime < now;
+
+              const therapistName =
+                typeof a.therapist === "string"
+                  ? a.therapist
+                  : a.therapist?.name;
+              const patientName =
+                typeof a.patient === "string" ? a.patient : a.patient?.name;
+
+              return (
+                <div
+                  key={a._id}
+                  className={[
+                    "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+                    isPast
+                      ? "border-gray-100"
+                      : "border-[var(--brand,#4b7eff)]/30",
+                  ].join(" ")}
+                >
+                  {/* Accent bar */}
+                  <div
+                    className={[
+                      "absolute inset-y-3 left-0 w-1 rounded-full",
+                      isPast
+                        ? "bg-gray-200"
+                        : "bg-[var(--brand,#4b7eff)]",
+                    ].join(" ")}
+                  />
+
+                  <div className="pl-3 sm:pl-4">
+                    {/* Top row */}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {fmt(a.start)}{" "}
+                          <span className="text-gray-400">→</span>{" "}
+                          {fmtTime(a.end)}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Created {a.createdAt ? fmt(a.createdAt) : "recently"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {a.mode && <ModeBadge mode={a.mode} />}
+                        <StatusBadge status={a.status} />
+                      </div>
+                    </div>
+
+                    {/* Middle row: people */}
+                    <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                      <p>
+                        <span className="text-gray-500">Therapist</span>{" "}
+                        <span className="font-medium">{therapistName}</span>
                       </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={a.status} />
-                    {role === "therapist" && a.patient && (
-                      <Link
-                        href={`/patient-records/${
-                          (a.patient as any)?._id || a.patient
-                        }`}
-                        className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
-                        title="Open patient records"
-                        prefetch={false}
-                      >
-                        Notes
-                      </Link>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions for pending */}
-                {isPending && (
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      onClick={() => confirmAppt(a._id)}
-                      disabled={isActing}
-                    >
-                      {isActing ? "Working…" : "Confirm"}
-                    </Button>
-                    <button
-                      onClick={() => cancelAppt(a._id)}
-                      disabled={isActing}
-                      className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                {/* Video link action for therapists on confirmed online appts */}
-                {role === "therapist" &&
-                  a.status === "confirmed" &&
-                  a.mode === "online" && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Button
-                        onClick={() => sendVideoLink(a._id)}
-                        disabled={isActing}
-                      >
-                        {a.meetingLink
-                          ? isActing
-                            ? "Sending…"
-                            : "Resend video link"
-                          : isActing
-                          ? "Sending…"
-                          : "Send video link"}
-                      </Button>
-
-                      {a.meetingLink && (
-                        <a
-                          href={a.meetingLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-[var(--brand,#4b7eff)] underline"
-                        >
-                          Open current link
-                        </a>
+                      <p>
+                        <span className="text-gray-500">Patient</span>{" "}
+                        <span className="font-medium">{patientName}</span>
+                      </p>
+                      {a.mode && (
+                        <p className="text-xs text-gray-500 sm:col-span-2">
+                          Mode{" "}
+                          <span className="capitalize">
+                            {a.mode === "online" ? "online" : "in person"}
+                          </span>
+                        </p>
                       )}
                     </div>
-                  )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+
+                    {/* Notes link for therapist */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {role === "therapist" && a.patient && (
+                        <Link
+                          href={`/patient-records/${
+                            (a.patient as any)?._id || a.patient
+                          }`}
+                          className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                          title="Open patient records"
+                          prefetch={false}
+                        >
+                          📝 Notes
+                        </Link>
+                      )}
+                      {a.meetingLink &&
+                        a.mode === "online" &&
+                        role !== "therapist" && (
+                          <a
+                            href={a.meetingLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-[var(--brand,#4b7eff)] underline"
+                          >
+                            Join video session
+                          </a>
+                        )}
+                    </div>
+
+                    {/* Pending actions */}
+                    {isPending && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => confirmAppt(a._id)}
+                          disabled={isActing}
+                        >
+                          {isActing ? "Working..." : "Confirm"}
+                        </Button>
+                        <button
+                          onClick={() => cancelAppt(a._id)}
+                          disabled={isActing}
+                          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Video link action for therapist on confirmed online appts */}
+                    {role === "therapist" &&
+                      a.status === "confirmed" &&
+                      a.mode === "online" && (
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <Button
+                            onClick={() => sendVideoLink(a._id)}
+                            disabled={isActing}
+                          >
+                            {a.meetingLink
+                              ? isActing
+                                ? "Sending..."
+                                : "Resend video link"
+                              : isActing
+                              ? "Sending..."
+                              : "Send video link"}
+                          </Button>
+
+                          {a.meetingLink && (
+                            <a
+                              href={a.meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-[var(--brand,#4b7eff)] underline"
+                            >
+                              Open current link
+                            </a>
+                          )}
+                        </div>
+                      )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

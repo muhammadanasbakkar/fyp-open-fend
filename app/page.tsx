@@ -304,9 +304,301 @@
 // function SparkIcon(){return(<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 2 1.76 5.24L19 9l-5.24 1.76L12 16l-1.76-5.24L5 9l5.24-1.76z"/></svg>)}
 // function DotIcon(){return(<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/></svg>)}
 
+// import { redirect } from "next/navigation";
 
-import { redirect } from "next/navigation";
+// export default function Home() {
+//   redirect("/login");
+// }
 
-export default function Home() {
-  redirect("/login");
+// app/page.tsx
+"use client";
+
+import Image from "next/image";
+
+const stats = [
+  { label: "Verified therapists", value: "25,000+" },
+  { label: "Cities covered", value: "70+" },
+  { label: "Patients served", value: "5M+" },
+  { label: "User rating", value: "4.9 / 5" },
+];
+
+const specialties = [
+  "Clinical Psychologist",
+  "Counseling Psychologist",
+  "Child & Adolescent Therapist",
+  "Couples & Marriage Therapist",
+  "Family Therapist",
+  "Trauma & PTSD Specialist",
+  "Anxiety & Mood Disorders",
+  "Addiction & Recovery",
+  "Grief & Loss Counselor",
+  "LGBTQ+ Affirming Therapist",
+  "Neurodiversity (ADHD, Autism)",
+  "Workplace Stress & Burnout",
+];
+
+const cities = [
+  "Karachi",
+  "Lahore",
+  "Islamabad",
+  "Rawalpindi",
+  "Faisalabad",
+  "Peshawar",
+  "Multan",
+  "Hyderabad",
+];
+
+export default function HomePage() {
+  return (
+    <div className="page">
+      {/* Header */}
+
+      {/* Hero section */}
+      <main>
+        <section className="hero">
+          <div className="container hero-inner">
+            <div className="hero-left">
+              <div className="hero-badge">
+                <span className="hero-dot" />
+                Pakistan’s first connected digital health platform that securely
+                tracks and stores all your medical records in one place.
+              </div>
+              <h1 className="hero-title">
+                Book appointments with the best therapists in Pakistan
+              </h1>
+              <p className="hero-subtitle">
+                Search top verified therapists by city and specialty. Consult
+                online in minutes or visit clinic with instant confirmed
+                booking.
+              </p>
+
+              {/* search card */}
+              <div id="search" className="search-card">
+                <div className="search-row">
+                  <div className="field">
+                    <label>City</label>
+                    <select>
+                      <option>Karachi</option>
+                      <option>Lahore</option>
+                      <option>Islamabad</option>
+                      <option>Rawalpindi</option>
+                      <option>Faisalabad</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Specialty, therapist or condition</label>
+                    <input
+                      type="text"
+                      placeholder="Eg. anxiety, couples therapy, Ms. Muntaha Ali"
+                    />
+                  </div>
+                  <button className="btn btn-primary search-btn">Search</button>
+                </div>
+                <p className="search-hint">
+                  Popular searches. Skin specialist, child specialist,
+                  psychologist, dentist
+                </p>
+              </div>
+
+              {/* stats */}
+              <div className="stats">
+                {stats.map((item) => (
+                  <div key={item.label} className="stat-item">
+                    <div className="stat-value">{item.value}</div>
+                    <div className="stat-label">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="hero-right">
+              <div className="doctor-card">
+                <div className="doctor-avatar">
+                  {/* <Image
+                    src="https://therakonnect.com/public/images/therapists/therapist-1627891234567.jpg"
+                    alt="Ms. Muntaha Ali"
+                    width={64}
+                    height={64}
+                    className="doctor-image"
+                  /> */}
+                </div>
+                <div>
+                  <h3 className="doctor-name">Ms. Muntaha Ali</h3>
+                  <p className="doctor-meta">Clinical Psychologist. Karachi</p>
+                  <p className="doctor-rating">⭐ 4.9 . 1,250 reviews</p>
+                </div>
+              </div>
+
+              <div className="hero-panel">
+                <h3>Book in clinic or video consult</h3>
+                <ul>
+                  <li>Instant booking with confirmed time</li>
+                  <li>Video consult from home in 2 minutes</li>
+                  <li>Digital prescriptions and medical history</li>
+                </ul>
+                <div className="hero-panel-footer">
+                  <button className="btn btn-primary btn-full">
+                    Start video consult
+                  </button>
+                  <p className="hero-panel-note">
+                    Available from 9.00am to 11.00pm daily
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* specialties section */}
+        <section className="section">
+          <div className="container">
+            <div className="section-header">
+              <h2>Consult top specialists</h2>
+              <p>Find therapists by specialty for your health concern</p>
+            </div>
+
+            <div className="chips-grid">
+              {specialties.map((sp) => (
+                <button key={sp} className="chip">
+                  {sp}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* how it works */}
+        <section id="how-it-works" className="section section-alt">
+          <div className="container">
+            <div className="section-header">
+              <h2>How TheraKonnect works</h2>
+              <p>Three simple steps to better care</p>
+            </div>
+
+            <div className="steps">
+              <div className="step">
+                <div className="step-number">1</div>
+                <h3>Search therapist</h3>
+                <p>
+                  Enter your city and specialty. Compare profiles, experience
+                  and reviews to choose the right therapist.
+                </p>
+              </div>
+              <div className="step">
+                <div className="step-number">2</div>
+                <h3>Book appointment</h3>
+                <p>
+                  Select clinic or video consult. Pick a convenient time and get
+                  instant confirmed booking.
+                </p>
+              </div>
+              <div className="step">
+                <div className="step-number">3</div>
+                <h3>Consult and follow up</h3>
+                <p>
+                  Join your consult on time. Receive digital prescription and
+                  follow up with the same therapist easily.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* top cities */}
+        <section className="section">
+          <div className="container">
+            <div className="section-header">
+              <h2>Top cities in Pakistan</h2>
+              <p>Find therapist near you in major cities</p>
+            </div>
+            <div className="chips-grid">
+              {cities.map((city) => (
+                <button key={city} className="chip chip-outline">
+                  {city}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* app section */}
+        {/* <section id="video-consult" className="section section-alt">
+          <div className="container app-section">
+            <div className="app-left">
+              <h2>Book and consult using our mobile app</h2>
+              <p>
+                Download the TheraKonnect.com app to manage your health more
+                easily. Keep prescriptions, reports and appointments in one
+                secure place.
+              </p>
+              <div className="store-buttons">
+                <div className="store-btn">
+                  <span className="store-label">Get it on</span>
+                  <span className="store-title">Google Play</span>
+                </div>
+                <div className="store-btn">
+                  <span className="store-label">Download on the</span>
+                  <span className="store-title">App Store</span>
+                </div>
+              </div>
+            </div>
+            <div className="app-right">
+              <div className="phone-mock">
+                <div className="phone-screen">
+                  <div className="phone-header">Upcoming appointment</div>
+                  <div className="phone-card">
+                    <div className="phone-doc-avatar" />
+                    <div>
+                      <div className="phone-doc-name">Dr. Imran Ahmed</div>
+                      <div className="phone-doc-meta">Cardiologist. Lahore</div>
+                      <div className="phone-doc-time">Today . 6.30pm</div>
+                    </div>
+                  </div>
+                  <button className="btn btn-primary btn-full phone-btn">
+                    Join video call
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section> */}
+
+        {/* simple testimonials and trust */}
+        <section id="labs" className="section">
+          <div className="container">
+            <div className="section-header">
+              <h2>Trusted by millions</h2>
+              <p>Real patients. Real stories</p>
+            </div>
+            <div className="testimonials">
+              <div className="testimonial">
+                <p>
+                  I booked a therapist in Karachi in just a few minutes. The
+                  online session was smooth, and I received my notes and
+                  follow-up plan right after.
+                </p>
+                <div className="testimonial-name">Sara, Karachi</div>
+              </div>
+              <div className="testimonial">
+                <p>
+                  I found a child specialist for my son and could check reviews
+                  before booking. Very helpful for parents.
+                </p>
+                <div className="testimonial-name">Ali, Lahore</div>
+              </div>
+              <div className="testimonial">
+                <p>
+                  Booking lab tests and therapist visits in one place saves me a
+                  lot of time. Highly recommended.
+                </p>
+                <div className="testimonial-name">Farhan, Islamabad</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* footer */}
+    </div>
+  );
 }

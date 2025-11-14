@@ -102,7 +102,7 @@ function RequestForm() {
         headers: {
           ...authHeader(token || undefined),
           "Content-Type": "application/json",
-        },
+        } as HeadersInit,
         body: JSON.stringify({ patientId, fromTherapistId: therapistId, content: reason }),
       });
       setMsg("Request sent successfully.");

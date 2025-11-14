@@ -13,7 +13,7 @@ export default function SharedRecordsPage() {
   async function loadSharedRecords() {
     try {
       const res = await api("/patient-records/shared", {
-        headers: authHeader(token || undefined),
+        headers: authHeader(token || undefined) as HeadersInit,
       });
       console.log("Shared records response:", res);
       setRecords(res.records || []);

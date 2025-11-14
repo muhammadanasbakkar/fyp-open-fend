@@ -32,7 +32,7 @@ function ProfileInner() {
     (async () => {
       setLoading(true); setErr(""); setMsg("");
       try {
-        const data = await api("api/therapists/me", { headers: authHeader(token) });
+        const data = await api("api/therapists/me", { headers: authHeader(token) as HeadersInit });
         const t = data?.therapist || {};
         setName(t.name || "");
         setPhone(t.phone || "");
@@ -52,7 +52,7 @@ function ProfileInner() {
     try {
       await api("api/therapists/me", {
         method: "PUT",
-        headers: { ...authHeader(token || undefined), "Content-Type": "application/json" },
+        headers: { ...(authHeader(token || undefined) as HeadersInit), "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           phone,
