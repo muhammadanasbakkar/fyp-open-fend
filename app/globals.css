@@ -750,3 +750,7 @@ a {
     text-align: center;
   }
 }
+.button-primary{
+    color: oklch(0.79 0.1 231.14);
+
+}
