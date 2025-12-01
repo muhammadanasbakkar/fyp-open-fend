@@ -332,7 +332,6 @@ const specialties = [
   "Anxiety & Mood Disorders",
   "Addiction & Recovery",
   "Grief & Loss Counselor",
-  "LGBTQ+ Affirming Therapist",
   "Neurodiversity (ADHD, Autism)",
   "Workplace Stress & Burnout",
 ];

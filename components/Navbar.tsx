@@ -2547,12 +2547,7 @@ export default function Navbar() {
           paramKey: "population",
           paramValue: "group",
         },
-        {
-          href: "/therapy/lgbtq",
-          label: "LGBTQ+ Affirming",
-          paramKey: "population",
-          paramValue: "lgbtq",
-        },
+       
         {
           href: "/therapy/geriatric",
           label: "Geriatric",
