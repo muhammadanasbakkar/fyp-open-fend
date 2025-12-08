@@ -419,16 +419,16 @@
 //                 }
 //                 className="
 //     w-full
-//     bg-blue-600 
-//     hover:bg-blue-700 
-//     text-white 
-//     font-semibold 
-//     py-3 
-//     rounded-lg 
-//     shadow-md 
-//     transition 
-//     duration-200 
-//     disabled:opacity-60 
+//     bg-blue-600
+//     hover:bg-blue-700
+//     text-white
+//     font-semibold
+//     py-3
+//     rounded-lg
+//     shadow-md
+//     transition
+//     duration-200
+//     disabled:opacity-60
 //     disabled:cursor-not-allowed
 //   "
 //               >
@@ -463,7 +463,6 @@
 //     </div>
 //   );
 // }
-
 
 // app/login/page.tsx
 "use client";
@@ -542,8 +541,9 @@ export default function LoginPage() {
             </p>
             <ul className="mt-2 space-y-1">
               <li>
-                • Patient ID looks like <span className="font-mono">PT-0000-12345678</span>{" "}
-                or the format your clinic shared.
+                • Patient ID looks like{" "}
+                <span className="font-mono">PT-0000-12345678</span> or the
+                format your clinic shared.
               </li>
               <li>
                 • Staff should use the official clinic email registered by a
@@ -731,13 +731,14 @@ export default function LoginPage() {
                 </>
               )}
 
-<Button
-  className="
+              <Button
+                className="
     w-full rounded-lg py-2.5 text-sm font-semibold
-    text-[#0f1d28]
-    bg-white
-    border border-[#77C6ED]
-    hover:bg-[#f3fbff]
+    text-white
+    bg-[#76C8F0]
+    border border-[#76C8F0]
+    hover:bg-white
+    hover:text-[#76C8F0]
     hover:border-[#63b8e3]
     active:bg-[#e5f5fc]
     shadow-sm
@@ -745,12 +746,9 @@ export default function LoginPage() {
     transition-all
     disabled:opacity-60 disabled:cursor-not-allowed
   "
->
-  {loading ? "Signing in..." : "Sign in"}
-</Button>
-
-
-
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </Button>
             </form>
           </div>
 

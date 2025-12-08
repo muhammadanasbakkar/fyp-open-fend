@@ -249,7 +249,7 @@
 //                 u.profilePicture
 //               );
 //               const profilePic = process.env.NEXT_PUBLIC_CDN_BASE + profileSrc;
-              
+
 //               return (
 //                 <li
 //                   key={u._id}
@@ -393,7 +393,6 @@
 //     </div>
 //   );
 // }
-
 
 // app/admin/pending-users/page.tsx
 "use client";
@@ -652,7 +651,7 @@ export default function PendingUsersPage() {
                 u.role === "therapist"
                   ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
                   : "bg-indigo-50 text-indigo-700 ring-indigo-100";
-console.log('profileSrc:', profileSrc);
+              console.log("profileSrc:", profileSrc);
               return (
                 <li
                   key={u._id}
@@ -793,7 +792,20 @@ console.log('profileSrc:', profileSrc);
                     <div className="flex shrink-0 items-center gap-2 self-end md:self-start">
                       <Button
                         onClick={() => act(u._id, "approve")}
-                        className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="
+    w-full rounded-lg py-2.5 text-sm font-semibold
+    text-white
+    bg-[#76C8F0]
+    border border-[#76C8F0]
+    hover:bg-white
+    hover:text-[#76C8F0]
+    hover:border-[#63b8e3]
+    active:bg-[#e5f5fc]
+    shadow-sm
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#77C6ED] focus-visible:ring-offset-2
+    transition-all
+    disabled:opacity-60 disabled:cursor-not-allowed
+  "
                       >
                         Approve
                       </Button>
