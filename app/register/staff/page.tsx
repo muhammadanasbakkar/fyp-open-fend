@@ -554,7 +554,7 @@ export default function RegisterStaffPage() {
         )}
 
         <form
-          onSubmit={onSubmit}
+          onSubmit={()=>{}}
           className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
         >
           {/* LEFT */}
