@@ -1199,17 +1199,36 @@ function List() {
                     {/* Notes link for therapist */}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {role === "therapist" && a.patient && (
-                        <Link
-                          href={`/patient-records/${
-                            (a.patient as any)?._id || a.patient
-                          }`}
-                          className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
-                          title="Open patient records"
-                          prefetch={false}
-                        >
-                          📝 Notes
-                        </Link>
-                      )}
+                        <>
+                          <Link
+                            href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(
+                              (a.patient as any)?._id || String(a.patient)
+                            )}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
+                            title="Open assessment form"
+                            prefetch={false}
+                          >
+                            🧾 Assessment
+                          </Link>
+                          <Link
+                          href={`/patient-records/${(a.patient as any)?._id || a.patient}/treatment-plan`}
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                            title="Open treatment plan"
+                            prefetch={false}
+                          >
+                            📋 Treatment Plan
+                          </Link>
+
+                          <Link
+                            href={`/patient-records/${(a.patient as any)?._id || a.patient
+                              }`}
+                            className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                            title="Open patient records"
+                            prefetch={false}
+                          >
+                            📝 Notes
+                          </Link>
+                        </>)}
                       {a.meetingLink &&
                         a.mode === "online" &&
                         role !== "therapist" && (
@@ -1257,8 +1276,8 @@ function List() {
                                 ? "Sending..."
                                 : "Resend video link"
                               : isActing
-                              ? "Sending..."
-                              : "Send video link"}
+                                ? "Sending..."
+                                : "Send video link"}
                           </Button>
 
                           {a.meetingLink && (
@@ -1280,6 +1299,6 @@ function List() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }

@@ -214,8 +214,8 @@ export default function RegisterStaffPage() {
     photoSize === "sm"
       ? "h-20 w-20" // small
       : photoSize === "lg"
-      ? "h-40 w-40" // large
-      : "h-28 w-28"; // default (medium)
+        ? "h-40 w-40" // large
+        : "h-28 w-28"; // default (medium)
 
   function ensureHospitalSchedule(id: string) {
     setHospitalSchedule((prev) => {
@@ -466,9 +466,9 @@ export default function RegisterStaffPage() {
 
       setInfo(
         data?.message ||
-          (role === "receptionist"
-            ? "Receptionist account submitted. Awaiting admin approval."
-            : "Therapist account submitted. Awaiting admin approval.")
+        (role === "receptionist"
+          ? "Receptionist account submitted. Awaiting admin approval."
+          : "Therapist account submitted. Awaiting admin approval.")
       );
     } catch (e: any) {
       setErr(e.message || "Something went wrong");
@@ -510,22 +510,20 @@ export default function RegisterStaffPage() {
               <button
                 type="button"
                 onClick={() => setRole("therapist")}
-                className={`flex-1 rounded-full px-3 py-1.5 transition ${
-                  role === "therapist"
+                className={`flex-1 rounded-full px-3 py-1.5 transition ${role === "therapist"
                     ? "bg-[var(--brand,#4b7eff)] text-white shadow-sm"
                     : "text-gray-600 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 Therapist
               </button>
               <button
                 type="button"
                 onClick={() => setRole("receptionist")}
-                className={`flex-1 rounded-full px-3 py-1.5 transition ${
-                  role === "receptionist"
+                className={`flex-1 rounded-full px-3 py-1.5 transition ${role === "receptionist"
                     ? "bg-[var(--brand,#4b7eff)] text-white shadow-sm"
                     : "text-gray-600 hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 Receptionist
               </button>
@@ -554,7 +552,7 @@ export default function RegisterStaffPage() {
         )}
 
         <form
-          onSubmit={()=>{}}
+          onSubmit={onSubmit}
           className="grid gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
         >
           {/* LEFT */}
@@ -1123,33 +1121,30 @@ export default function RegisterStaffPage() {
                 <button
                   type="button"
                   onClick={() => setPhotoSize("sm")}
-                  className={`rounded-full border px-2 py-0.5 ${
-                    photoSize === "sm"
+                  className={`rounded-full border px-2 py-0.5 ${photoSize === "sm"
                       ? "border-[var(--brand,#4b7eff)] bg-[var(--brand,#4b7eff)] text-white"
                       : "border-gray-300 bg-white"
-                  }`}
+                    }`}
                 >
                   Small
                 </button>
                 <button
                   type="button"
                   onClick={() => setPhotoSize("md")}
-                  className={`rounded-full border px-2 py-0.5 ${
-                    photoSize === "md"
+                  className={`rounded-full border px-2 py-0.5 ${photoSize === "md"
                       ? "border-[var(--brand,#4b7eff)] bg-[var(--brand,#4b7eff)] text-white"
                       : "border-gray-300 bg-white"
-                  }`}
+                    }`}
                 >
                   Medium
                 </button>
                 <button
                   type="button"
                   onClick={() => setPhotoSize("lg")}
-                  className={`rounded-full border px-2 py-0.5 ${
-                    photoSize === "lg"
+                  className={`rounded-full border px-2 py-0.5 ${photoSize === "lg"
                       ? "border-[var(--brand,#4b7eff)] bg-[var(--brand,#4b7eff)] text-white"
                       : "border-gray-300 bg-white"
-                  }`}
+                    }`}
                 >
                   Large
                 </button>
@@ -1197,8 +1192,8 @@ export default function RegisterStaffPage() {
                 )}
               </Button> */}
 
-<Button
- className="
+              <Button
+                className="
     w-full rounded-lg py-2.5 text-sm font-semibold
     text-white
     bg-[#76C8F0]
@@ -1212,9 +1207,9 @@ export default function RegisterStaffPage() {
     transition-all
     disabled:opacity-60 disabled:cursor-not-allowed
   "
->
-    {loading ? "Submitting…" :    "Submit for approval"}
-</Button>
+              >
+                {loading ? "Submitting…" : "Submit for approval"}
+              </Button>
               <p className="mt-3 text-center text-xs text-gray-600">
                 Already approved?{" "}
                 <Link

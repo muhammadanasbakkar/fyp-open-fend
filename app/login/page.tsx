@@ -645,7 +645,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={()=>{}} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-4">
               {mode === "patient" ? (
                 <>
                   <div>
