@@ -2788,7 +2788,7 @@ function BookPageInner() {
                       >
                         <div className="flex items-center gap-3">
                           <Image
-                            src={src || "/default-avatar.png"}
+                            src={src}
                             width={40}
                             height={40}
                             alt={displayName}

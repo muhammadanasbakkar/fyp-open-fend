@@ -666,7 +666,7 @@ export default function LoginPage() {
 
                   <div className="relative">
                     <label className="mb-1 block text-sm text-slate-700">
-                      Password
+                      
                     </label>
                     <Input
                       type={showPw ? "text" : "password"}
