@@ -72,11 +72,11 @@ const PatientCard = forwardRef<HTMLDivElement, PatientCardProps>(function Patien
     >
       {/* Header / Brand strip */}
       <div
-        className="rounded-xl px-3 py-2 text-white"
-        style={{ background: "var(--brand,#4b7eff)" }}
+        className="rounded-xl px-3 py-2.5 text-white"
+        style={{ background: "linear-gradient(to right, #4b7eff, #6aa7ff)" }}
       >
-        <div className="text-xs opacity-90">PsyTrack</div>
-        <div className="text-sm font-semibold">Patient ID Card</div>
+        <div className="text-xs font-medium opacity-90">TheraKonnect</div>
+        <div className="text-sm font-bold">Patient ID Card</div>
       </div>
 
       <div className="mt-3 flex items-center gap-3">

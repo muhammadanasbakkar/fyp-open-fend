@@ -540,7 +540,7 @@ export default function PendingUsersPage() {
   const pendingCount = data.length;
 
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-slate-50 to-slate-100">
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
         {/* Breadcrumb */}
         <div className="mb-4 flex items-center gap-1 text-xs text-gray-500">
@@ -565,13 +565,13 @@ export default function PendingUsersPage() {
           </div>
           <div className="flex items-center gap-3">
             {pendingCount > 0 && (
-              <span className="inline-flex items-center rounded-full bg-slate-900/5 px-3 py-1 text-xs font-medium text-slate-800">
+              <span className="inline-flex items-center rounded-full bg-[#4b7eff]/10 px-3 py-1 text-xs font-semibold text-[#4b7eff]">
                 {pendingCount} pending
               </span>
             )}
             <Link
               href="/dashboard"
-              className="text-sm font-medium text-[var(--brand,#2563eb)] hover:underline"
+              className="text-sm font-medium text-[#4b7eff] hover:underline"
             >
               Back to dashboard
             </Link>
@@ -792,20 +792,7 @@ export default function PendingUsersPage() {
                     <div className="flex shrink-0 items-center gap-2 self-end md:self-start">
                       <Button
                         onClick={() => act(u._id, "approve")}
-                        className="
-    w-full rounded-lg py-2.5 text-sm font-semibold
-    text-white
-    bg-[#76C8F0]
-    border border-[#76C8F0]
-    hover:bg-white
-    hover:text-[#76C8F0]
-    hover:border-[#63b8e3]
-    active:bg-[#e5f5fc]
-    shadow-sm
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#77C6ED] focus-visible:ring-offset-2
-    transition-all
-    disabled:opacity-60 disabled:cursor-not-allowed
-  "
+                        className="rounded-xl px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] hover:brightness-105 active:brightness-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4b7eff] focus-visible:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         Approve
                       </Button>

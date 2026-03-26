@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",
-    "dayjs": "^1.11.18",
+    "dayjs": "^1.11.20",
     "html2canvas": "^1.4.1",
     "libphonenumber-js": "^1.12.22",
     "next": "15.4.6",

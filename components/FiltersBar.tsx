@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const inputCls =
+  "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-[#4b7eff] focus:ring-0";
+
 export default function FiltersBar() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -28,6 +31,8 @@ export default function FiltersBar() {
     setSort(sp.get("sort") || "recent");
   }, [sp]);
 
+  const activeCount = [q, city, modality, concern, population, setting, feeMin, feeMax].filter(Boolean).length;
+
   function apply() {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
@@ -47,35 +52,73 @@ export default function FiltersBar() {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm grid gap-3 md:grid-cols-4 lg:grid-cols-6">
-      <input className="input" placeholder="Search name/specialty" value={q} onChange={e=>setQ(e.target.value)} />
-      <input className="input" placeholder="City" value={city} onChange={e=>setCity(e.target.value)} />
-      <input className="input" placeholder="Modality (e.g. cbt)" value={modality} onChange={e=>setModality(e.target.value)} />
-      <input className="input" placeholder="Concern (e.g. anxiety)" value={concern} onChange={e=>setConcern(e.target.value)} />
-      <input className="input" placeholder="Population (e.g. couples)" value={population} onChange={e=>setPopulation(e.target.value)} />
-      <input className="input" placeholder="Setting (online / in-person)" value={setting} onChange={e=>setSetting(e.target.value)} />
-
-      <div className="md:col-span-2 lg:col-span-3 grid grid-cols-3 gap-3">
-        <input type="number" min={0} className="input" placeholder="Min fee" value={feeMin} onChange={e=>setFeeMin(e.target.value)} />
-        <input type="number" min={0} className="input" placeholder="Max fee" value={feeMax} onChange={e=>setFeeMax(e.target.value)} />
-        <select className="input" value={sort} onChange={e=>setSort(e.target.value)}>
-          <option value="recent">Sort: Recent</option>
-          <option value="name">Sort: Name</option>
-          <option value="experience">Sort: Experience</option>
-        </select>
+    <div className="space-y-4">
+      {/* Top row: search + sort */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            className="w-full rounded-xl border-2 border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors focus:border-[#4b7eff]"
+            placeholder="Search by name or specialty…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && apply()}
+          />
+        </div>
+        <div className="sm:w-44">
+          <select
+            className={inputCls}
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="recent">Sort: Recent</option>
+            <option value="name">Sort: Name A–Z</option>
+            <option value="experience">Sort: Experience</option>
+          </select>
+        </div>
       </div>
 
-      <div className="md:col-span-2 lg:col-span-3 flex gap-3">
-        <button onClick={apply} className="btn-primary">Apply</button>
-        <button onClick={clearAll} className="btn">Clear</button>
+      {/* Filter grid */}
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <input className={inputCls} placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
+        <input className={inputCls} placeholder="Modality (e.g. CBT)" value={modality} onChange={(e) => setModality(e.target.value)} />
+        <input className={inputCls} placeholder="Concern (e.g. anxiety)" value={concern} onChange={(e) => setConcern(e.target.value)} />
+        <input className={inputCls} placeholder="Population (e.g. couples)" value={population} onChange={(e) => setPopulation(e.target.value)} />
+        <input className={inputCls} placeholder="Setting (e.g. online)" value={setting} onChange={(e) => setSetting(e.target.value)} />
+        <div className="flex gap-2">
+          <input type="number" min={0} className={inputCls} placeholder="Min fee" value={feeMin} onChange={(e) => setFeeMin(e.target.value)} />
+          <input type="number" min={0} className={inputCls} placeholder="Max fee" value={feeMax} onChange={(e) => setFeeMax(e.target.value)} />
+        </div>
       </div>
 
-      {/* Tiny styles so it looks good with Tailwind */}
-      <style jsx>{`
-        .input{ @apply w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200; }
-        .btn{ @apply inline-flex items-center rounded-lg border px-4 py-2 text-sm hover:bg-gray-50; }
-        .btn-primary{ @apply inline-flex items-center rounded-lg bg-[var(--brand,#4b7eff)] px-4 py-2 text-sm font-semibold text-white hover:brightness-95; }
-      `}</style>
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={apply}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-[#4b7eff] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3a5bef] active:scale-[.98] transition-all"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          Search
+        </button>
+        {activeCount > 0 && (
+          <button
+            onClick={clearAll}
+            className="inline-flex items-center gap-1.5 rounded-xl border-2 border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Clear{" "}
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#4b7eff] text-[9px] font-bold text-white">
+              {activeCount}
+            </span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

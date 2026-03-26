@@ -43,7 +43,7 @@
 //         {/* Brand / heading */}
 //         <div className="mb-6 text-center">
 //           <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-[var(--brand,#4b7eff)]/10 grid place-items-center">
-//             <span className="text-lg font-bold text-[var(--brand,#4b7eff)]">PT</span>
+//             <span className="text-lg font-bold text-[#4b7eff]">PT</span>
 //           </div>
 //           <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
 //           <p className="mt-1 text-sm text-gray-600">
@@ -122,7 +122,7 @@
 //                 <div className="relative">
 //                   <div className="mb-1 flex items-center justify-between">
 //                     <label className="block text-sm text-gray-700">Password</label>
-//                     <Link href="/forgot-password" className="text-xs text-[var(--brand,#4b7eff)] hover:underline">
+//                     <Link href="/forgot-password" className="text-xs text-[#4b7eff] hover:underline">
 //                       Forgot password?
 //                     </Link>
 //                   </div>
@@ -157,14 +157,14 @@
 
 //         <p className="text-center text-sm text-gray-600">
 //           New here?{" "}
-//           <Link href="/register" className="font-medium text-[var(--brand,#4b7eff)] hover:underline">
+//           <Link href="/register" className="font-medium text-[#4b7eff] hover:underline">
 //             Create an account
 //           </Link>
 //         </p>
 
 //         <p className="mt-2 text-center text-xs text-gray-500">
 //           Staff account requests?{" "}
-//           <Link href="/register/staff" className="text-[var(--brand,#4b7eff)] hover:underline">
+//           <Link href="/register/staff" className="text-[#4b7eff] hover:underline">
 //             Register as therapist/receptionist
 //           </Link>
 //         </p>
@@ -264,7 +264,7 @@
 //             Need a new account?{" "}
 //             <Link
 //               href="/register"
-//               className="font-medium text-[var(--brand,#4b7eff)] hover:underline"
+//               className="font-medium text-[#4b7eff] hover:underline"
 //             >
 //               Create a patient account
 //             </Link>
@@ -302,7 +302,7 @@
 //           <div className="rounded-2xl border border-slate-100 bg-white/90 p-6 shadow-sm backdrop-blur">
 //             <div className="mb-4 text-center sm:text-left">
 //               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand,#4b7eff)]/10 sm:mx-0">
-//                 <span className="text-lg font-bold text-[var(--brand,#4b7eff)]">
+//                 <span className="text-lg font-bold text-[#4b7eff]">
 //                   TK
 //                 </span>
 //               </div>
@@ -388,7 +388,7 @@
 //                       </label>
 //                       <Link
 //                         href="/forgot-password"
-//                         className="text-xs text-[var(--brand,#4b7eff)] hover:underline"
+//                         className="text-xs text-[#4b7eff] hover:underline"
 //                       >
 //                         Forgot password?
 //                       </Link>
@@ -443,7 +443,7 @@
 //               Need a new account?{" "}
 //               <Link
 //                 href="/register?mode=patient"
-//                 className="font-bold text-[var(--brand,#2563eb)] hover:underline"
+//                 className="font-bold text-[#4b7eff] hover:underline"
 //               >
 //                 Create a patient account
 //               </Link>
@@ -452,7 +452,7 @@
 //               Need a staff account?{" "}
 //               <Link
 //                 href="/register/staff"
-//                 className="font-bold text-[var(--brand,#2563eb)] hover:underline"
+//                 className="font-bold text-[#4b7eff] hover:underline"
 //               >
 //                 Register as therapist or receptionist
 //               </Link>
@@ -504,7 +504,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-sky-50/60 via-white to-slate-50">
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
       <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 pb-16 pt-10 sm:px-6 lg:flex-row lg:items-center">
         {/* Left side — intro */}
         <div className="w-full space-y-6 lg:w-[45%]">
@@ -518,7 +518,7 @@ export default function LoginPage() {
           </div>
 
           {/* Small badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-medium text-blue-700 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             Secure sign-in to TheraKonnect
           </div>
@@ -535,7 +535,7 @@ export default function LoginPage() {
           </div>
 
           {/* Tips card */}
-          <div className="rounded-2xl border border-slate-100 bg-white/80 p-4 text-xs text-slate-600 shadow-sm backdrop-blur">
+          <div className="rounded-2xl border border-blue-100/60 bg-white/80 p-4 text-xs text-slate-600 shadow-sm backdrop-blur">
             <p className="text-sm font-medium text-slate-900">
               Tips for a smooth login
             </p>
@@ -561,7 +561,7 @@ export default function LoginPage() {
             New here?{" "}
             <Link
               href="/register?mode=patient"
-              className="font-medium text-[var(--brand,#4b7eff)] hover:underline"
+              className="font-medium text-[#4b7eff] hover:underline"
             >
               Create a patient account
             </Link>
@@ -606,12 +606,12 @@ export default function LoginPage() {
           </div>
 
           {/* Card */}
-          <div className="rounded-2xl border border-slate-100 bg-white/95 p-6 shadow-sm backdrop-blur">
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md">
             {/* Logo + title */}
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--brand,#4b7eff)]/10">
-                  <span className="text-lg font-bold text-[var(--brand,#4b7eff)]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#4b7eff]/15 to-[#6aa7ff]/15 border border-[#4b7eff]/20">
+                  <span className="text-lg font-bold text-[#4b7eff]">
                     TK
                   </span>
                 </div>
@@ -628,7 +628,7 @@ export default function LoginPage() {
               </div>
               <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-700 sm:inline-flex">
                 Mode:{" "}
-                <span className="ml-1 capitalize text-[var(--brand,#4b7eff)]">
+                <span className="ml-1 capitalize text-[#4b7eff]">
                   {mode}
                 </span>
               </span>
@@ -666,7 +666,7 @@ export default function LoginPage() {
 
                   <div className="relative">
                     <label className="mb-1 block text-sm text-slate-700">
-                      
+                      Password
                     </label>
                     <Input
                       type={showPw ? "text" : "password"}
@@ -678,7 +678,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setShowPw((s) => !s)}
-                      className="absolute right-2 top-8 rounded-md px-2 text-xs text-slate-600 hover:bg-slate-50"
+                      className="absolute right-2 top-8 rounded-md px-2 text-xs text-slate-500 hover:bg-slate-100"
                     >
                       {showPw ? "Hide" : "Show"}
                     </button>
@@ -708,7 +708,7 @@ export default function LoginPage() {
                       </label>
                       <Link
                         href="/forgot-password"
-                        className="text-xs text-[var(--brand,#4b7eff)] hover:underline"
+                        className="text-xs text-[#4b7eff] hover:underline"
                       >
                         Forgot password?
                       </Link>
@@ -732,22 +732,18 @@ export default function LoginPage() {
               )}
 
               <Button
-                className="
-    w-full rounded-lg py-2.5 text-sm font-semibold
-    text-white
-    bg-[#76C8F0]
-    border border-[#76C8F0]
-    hover:bg-white
-    hover:text-[#76C8F0]
-    hover:border-[#63b8e3]
-    active:bg-[#e5f5fc]
-    shadow-sm
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#77C6ED] focus-visible:ring-offset-2
-    transition-all
-    disabled:opacity-60 disabled:cursor-not-allowed
-  "
+                disabled={loading}
+                className="w-full rounded-xl py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] hover:brightness-105 active:brightness-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4b7eff] focus-visible:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Signing in...
+                  </span>
+                ) : "Sign in"}
               </Button>
             </form>
           </div>
@@ -758,7 +754,7 @@ export default function LoginPage() {
               New patient?{" "}
               <Link
                 href="/register?mode=patient"
-                className="font-semibold text-[var(--brand,#2563eb)] hover:underline"
+                className="font-semibold text-[#4b7eff] hover:underline"
               >
                 Create a patient account
               </Link>
@@ -767,7 +763,7 @@ export default function LoginPage() {
               Need a staff account?{" "}
               <Link
                 href="/register/staff"
-                className="font-semibold text-[var(--brand,#2563eb)] hover:underline"
+                className="font-semibold text-[#4b7eff] hover:underline"
               >
                 Register as therapist or receptionist
               </Link>

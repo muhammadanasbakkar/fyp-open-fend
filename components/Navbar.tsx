@@ -2321,17 +2321,16 @@ function NavLink({
   variant?: "nav" | "menu";
 }) {
   const navClasses = cn(
-    "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+    "rounded-lg px-3 py-2 text-sm font-medium transition-all",
     active
-      ? "bg-gray-100 text-gray-900"
-      : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+      ? "bg-[#4b7eff]/10 text-[#4b7eff]"
+      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
   );
 
   const menuClasses = cn(
     "block w-full rounded-lg px-3 py-2 text-sm transition-colors",
-    "text-gray-700 hover:bg-gray-50",
     "whitespace-nowrap",
-    active && "bg-gray-100 text-gray-900"
+    active ? "bg-[#4b7eff]/8 text-[#4b7eff] font-medium" : "text-gray-700 hover:bg-gray-50"
   );
 
   return (
@@ -2636,65 +2635,78 @@ export default function Navbar() {
     };
   }, []);
 
+  /* ── tiny icon helpers ── */
+  const ChevronDown = ({ open: o }: { open: boolean }) => (
+    <svg
+      className={cn("ml-1 h-3.5 w-3.5 transition-transform duration-200", o && "rotate-180")}
+      viewBox="0 0 20 20" fill="currentColor"
+    >
+      <path fillRule="evenodd" clipRule="evenodd"
+        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+    </svg>
+  );
+
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        {/* Brand */}
-        <Link href="/" className="text-xl">
+    <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/90 shadow-[0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+
+        {/* ── Brand ── */}
+        <Link href="/" className="flex shrink-0 items-center gap-2.5 focus-visible:outline-none">
           <Logo />
+          <span className="hidden font-bold text-[15px] tracking-tight text-gray-900 sm:inline">
+            Thera<span className="text-[#4b7eff]">Konnect</span>
+          </span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {/* Therapy mega menu */}
+        {/* ── Desktop nav ── */}
+        <nav className="hidden items-center gap-0.5 md:flex">
+
+          {/* Therapy mega-menu */}
           <div className="relative" ref={therapyMenuRef}>
             <button
-              onClick={() => setTherapyOpen((s) => !s)}
+              onClick={() => setTherapyOpen(s => !s)}
               aria-expanded={therapyOpen}
               aria-haspopup="menu"
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all",
                 therapyActive
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                  ? "bg-[#4b7eff]/10 text-[#4b7eff]"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               )}
             >
-              Therapy{" "}
-              <span className="ml-1 inline-block align-middle">▾</span>
+              Therapy <ChevronDown open={therapyOpen} />
             </button>
 
             {therapyOpen && (
               <div
                 role="menu"
-                className="absolute left-0 mt-2 grid w-[760px] grid-cols-4 gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-xl"
+                className="absolute left-0 top-[calc(100%+8px)] z-50 grid w-[780px] grid-cols-4 gap-x-2 gap-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-2xl ring-1 ring-black/5"
               >
                 {therapyColumns.map((col, i) => (
                   <div key={i}>
-                    <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                       {col.heading}
-                    </div>
-                    <ul className="space-y-1">
-                      {col.items.map((it) => {
-                        const hrefWithParam = withParam(
-                          it.href,
-                          it.paramKey,
-                          it.paramValue
-                        );
+                    </p>
+                    <ul className="space-y-0.5">
+                      {col.items.map(it => {
+                        const hrefWithParam = withParam(it.href, it.paramKey, it.paramValue);
+                        const active = isActive(it.href);
                         return (
                           <li key={it.href}>
                             <Link
                               href={hrefWithParam}
                               className={cn(
-                                "flex flex-col rounded-md px-2 py-2 hover:bg-gray-50",
-                                isActive(it.href) &&
-                                  "bg-gray-100 text-gray-900"
+                                "group flex flex-col rounded-lg px-2.5 py-2 transition-colors",
+                                active
+                                  ? "bg-[#4b7eff]/8 text-[#4b7eff]"
+                                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                               )}
                             >
-                              <span className="text-sm text-gray-800">
+                              <span className="text-[13px] font-medium leading-snug">
                                 {it.label}
                               </span>
                               {it.desc && (
-                                <span className="text-[11px] text-gray-500">
+                                <span className="text-[11px] text-gray-400 group-hover:text-gray-500">
                                   {it.desc}
                                 </span>
                               )}
@@ -2705,6 +2717,16 @@ export default function Navbar() {
                     </ul>
                   </div>
                 ))}
+                {/* Footer strip */}
+                <div className="col-span-4 mt-1 border-t border-gray-50 pt-3 flex items-center justify-between">
+                  <p className="text-xs text-gray-400">Browse all therapy types by specialty, approach, and format.</p>
+                  <Link
+                    href="/appointments/book"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#4b7eff]/8 px-3 py-1.5 text-xs font-semibold text-[#4b7eff] hover:bg-[#4b7eff]/15 transition-colors"
+                  >
+                    Book a session →
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -2712,93 +2734,87 @@ export default function Navbar() {
           {/* Appointments dropdown */}
           <div className="relative" ref={apptMenuRef}>
             <button
-              onClick={() => setApptOpen((s) => !s)}
+              onClick={() => setApptOpen(s => !s)}
               aria-expanded={apptOpen}
               aria-haspopup="menu"
               className={cn(
-                "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all",
                 apptActive
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                  ? "bg-[#4b7eff]/10 text-[#4b7eff]"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               )}
             >
-              Appointments{" "}
-              <span className="ml-1 inline-block align-middle">▾</span>
+              Appointments <ChevronDown open={apptOpen} />
             </button>
+
             {apptOpen && (
               <div
                 role="menu"
-                className="absolute left-0 mt-2 min-w-[220px] rounded-xl border border-gray-100 bg-white p-1 shadow-lg"
+                className="absolute left-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl ring-1 ring-black/5"
               >
-                <NavLink
-                  variant="menu"
-                  href="/appointments/book"
-                  label="Book an appointment"
-                  active={isActive("/appointments/book")}
-                />
-                <NavLink
-                  variant="menu"
-                  href="/appointments/my"
-                  label="My appointments"
-                  active={isActive("/appointments/my")}
-                />
-                <NavLink
-                  variant="menu"
-                  href="/appointments/find-therapist"
-                  label="Find a therapist"
-                  active={isActive("/appointments/find-therapist")}
-                />
-                <NavLink
-                  variant="menu"
-                  href="/appointments/insurance"
-                  label="Insurance & fees"
-                  active={isActive("/appointments/insurance")}
-                />
+                {/* Header */}
+                <div className="border-b border-gray-50 bg-gradient-to-r from-[#4b7eff]/5 to-transparent px-4 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#4b7eff]">Appointments</p>
+                </div>
+                <div className="p-1.5 space-y-0.5">
+                  {[
+                    { href: "/appointments/book", label: "Book an appointment", icon: "📅" },
+                    { href: "/appointments/my", label: "My appointments", icon: "🗓️" },
+                    { href: "/appointments/find-therapist", label: "Find a therapist", icon: "🔍" },
+                  ].map(item => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                        isActive(item.href)
+                          ? "bg-[#4b7eff]/8 font-medium text-[#4b7eff]"
+                          : "text-gray-700 hover:bg-gray-50"
+                      )}
+                    >
+                      <span className="text-base">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* 👇 Availability top-level nav (unauth or therapist) */}
           {showAvailability && (
-            <NavLink
-              href="/availability"
-              label="Availability"
-              active={isActive("/availability")}
-            />
+            <NavLink href="/availability" label="Availability" active={isActive("/availability")} />
           )}
 
-          {/* Role-aware links (receptionist, admin, etc.) */}
-          {roleLinks.map((l) => (
-            <NavLink
-              key={l.href}
-              href={l.href}
-              label={l.label}
-              active={isActive(l.href)}
-            />
+          {roleLinks.map(l => (
+            <NavLink key={l.href} href={l.href} label={l.label} active={isActive(l.href)} />
           ))}
 
-          {/* Static links */}
-          <NavLink
-            href="/resources"
-            label="Resources"
-            active={isActive("/resources")}
-          />
+          <NavLink href="/resources" label="Resources" active={isActive("/resources")} />
           <NavLink href="/about" label="About" active={isActive("/about")} />
         </nav>
 
-        {/* Desktop auth */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* ── Desktop auth ── */}
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
           {!user ? (
             <>
               <Link
                 href="/login"
-                className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
               >
-                Login
+                Log in
+              </Link>
+              <Link
+                href="/appointments/book"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#4b7eff]/20 bg-[#4b7eff]/8 px-3.5 py-2 text-sm font-semibold text-[#4b7eff] transition-all hover:bg-[#4b7eff]/15"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Book
               </Link>
               <Link
                 href="/register"
-                className="inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold bg-[var(--brand,#4b7eff)] text-white shadow-sm hover:brightness-95"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 hover:shadow-md"
               >
                 Get started
               </Link>
@@ -2806,225 +2822,282 @@ export default function Navbar() {
           ) : (
             <div className="relative" ref={userMenuRef}>
               <button
-                onClick={() => setUserOpen((s) => !s)}
+                onClick={() => setUserOpen(s => !s)}
                 aria-expanded={userOpen}
                 aria-haspopup="menu"
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
+                className="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-all hover:bg-gray-100"
               >
-                <span className="hidden sm:inline text-sm text-gray-700">
-                  Hi, {firstName}
-                </span>
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-gray-200 text-xs font-semibold text-gray-700">
-                  {firstName.slice(0, 1).toUpperCase()}
-                </span>
+                <div className="relative">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[#4b7eff] to-[#6366f1] text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                    {firstName.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-400" />
+                </div>
+                <span className="hidden text-sm font-medium text-gray-700 sm:block">{firstName}</span>
+                <ChevronDown open={userOpen} />
               </button>
+
               {userOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-lg flex flex-col"
+                  className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl ring-1 ring-black/5"
                 >
-                  <NavLink
-                    href="/dashboard"
-                    label="Dashboard"
-                    active={isActive("/dashboard")}
-                  />
-                  <NavLink
-                    href="/settings/profile"
-                    label="Settings"
-                    active={isActive("/settings")}
-                  />
-                  <button
-                    onClick={logout}
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-gray-50"
-                    role="menuitem"
-                  >
-                    Logout
-                  </button>
+                  {/* User header */}
+                  <div className="flex items-center gap-3 border-b border-gray-50 bg-gradient-to-r from-[#4b7eff]/5 to-transparent px-4 py-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#4b7eff] to-[#6366f1] text-sm font-bold text-white">
+                      {firstName.slice(0, 1).toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-900">{user?.name || firstName}</p>
+                      <p className="text-[11px] capitalize text-gray-400">{role || "user"}</p>
+                    </div>
+                  </div>
+
+                  {/* Menu items */}
+                  <div className="p-1.5 space-y-0.5">
+                    {[
+                      { href: "/dashboard", label: "Dashboard", icon: "⊞" },
+                      { href: "/appointments/my", label: "My appointments", icon: "🗓️" },
+                      { href: "/settings/profile", label: "Settings", icon: "⚙️" },
+                    ].map(item => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                          isActive(item.href)
+                            ? "bg-[#4b7eff]/8 font-medium text-[#4b7eff]"
+                            : "text-gray-700 hover:bg-gray-50"
+                        )}
+                      >
+                        <span className="text-base">{item.icon}</span>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+
+                  <div className="mx-2 h-px bg-gray-100" />
+
+                  <div className="p-1.5">
+                    <button
+                      onClick={logout}
+                      role="menuitem"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Log out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Mobile toggle */}
+        {/* ── Mobile toggle (animated hamburger / X) ── */}
         <button
-          className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-gray-50"
-          aria-label="Open menu"
+          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-gray-100 md:hidden"
+          aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
-          onClick={() => setOpen((s) => !s)}
+          onClick={() => setOpen(s => !s)}
         >
-          <div className="space-y-1.5">
-            <span className="block h-0.5 w-5 bg-gray-900" />
-            <span className="block h-0.5 w-5 bg-gray-900" />
-            <span className="block h-0.5 w-5 bg-gray-900" />
-          </div>
+          <span className="sr-only">{open ? "Close" : "Open"} menu</span>
+          {open ? (
+            <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
         </button>
       </div>
 
-      {/* Mobile panel */}
+      {/* ── Mobile drawer ── */}
       {open && (
-        <div className="md:hidden border-t border-gray-100 bg-white shadow-sm">
-          <nav className="mx-auto max-w-6xl px-4 py-3 flex flex-col gap-2">
-            {/* Auth row */}
-            {!user ? (
-              <div className="flex gap-2">
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="flex-1 rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 text-center"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={() => setOpen(false)}
-                  className="flex-1 rounded-md px-4 py-2 text-sm font-semibold text-white text-center"
-                  style={{
-                    background:
-                      "linear-gradient(90deg,var(--brand,#4b7eff),var(--brand2,#6aa7ff))",
-                  }}
-                >
-                  Get started
-                </Link>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between rounded-md border border-gray-100 px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-gray-200 text-sm font-semibold text-gray-700">
-                    {firstName.slice(0, 1).toUpperCase()}
+        <div className="md:hidden">
+          <div className="border-t border-gray-100 bg-white shadow-xl">
+            <div className="mx-auto max-w-6xl space-y-2 px-4 py-4">
+
+              {/* Auth card */}
+              {!user ? (
+                <div className="space-y-2 pb-2">
+                  <Link
+                    href="/appointments/book"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] py-3 text-sm font-bold text-white shadow-sm hover:brightness-110 transition-all"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Book a session
+                  </Link>
+                  <div className="flex gap-2">
+                    <Link
+                      href="/login"
+                      onClick={() => setOpen(false)}
+                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setOpen(false)}
+                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Sign up
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gradient-to-r from-[#4b7eff]/5 to-transparent px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[#4b7eff] to-[#6366f1] text-sm font-bold text-white shadow-sm">
+                        {firstName.slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{user?.name || firstName}</p>
+                      <p className="text-xs capitalize text-gray-400">{role || "signed in"}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { logout(); setOpen(false); }}
+                    className="rounded-xl border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
+
+              {/* Therapy accordion */}
+              <details className="group rounded-2xl border border-gray-100 overflow-hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between bg-white px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors">
+                  <span className="flex items-center gap-2">
+                    <span className="text-base">🧠</span> Therapy
                   </span>
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-900">
-                      Hi, {firstName}
+                  <svg className="h-4 w-4 text-gray-400 transition-transform duration-200 group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="divide-y divide-gray-50 border-t border-gray-100 bg-gray-50/50">
+                  {therapyColumns.map((col, i) => (
+                    <div key={i} className="px-3 py-3">
+                      <p className="mb-1.5 px-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                        {col.heading}
+                      </p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {col.items.map(it => {
+                          const hrefWithParam = withParam(it.href, it.paramKey, it.paramValue);
+                          return (
+                            <Link
+                              key={it.href}
+                              href={hrefWithParam}
+                              onClick={() => setOpen(false)}
+                              className={cn(
+                                "rounded-xl px-3 py-2 text-sm transition-colors",
+                                isActive(it.href)
+                                  ? "bg-[#4b7eff]/10 font-medium text-[#4b7eff]"
+                                  : "text-gray-700 hover:bg-white hover:text-gray-900"
+                              )}
+                            >
+                              {it.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="text-gray-500">Signed in</div>
-                  </div>
+                  ))}
                 </div>
-                <button
-                  onClick={() => {
-                    logout();
-                    setOpen(false);
-                  }}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
+              </details>
 
-            {/* Therapy accordion */}
-            <details className="group rounded-md border border-gray-100">
-              <summary className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm font-semibold">
-                Therapy
-                <span className="transition group-open:rotate-180">▾</span>
-              </summary>
-              <div className="grid grid-cols-1 gap-1 p-2">
-                {therapyColumns.map((col, i) => (
-                  <div key={i} className="rounded-md bg-gray-50">
-                    <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {col.heading}
-                    </div>
-                    {col.items.map((it) => {
-                      const hrefWithParam = withParam(
-                        it.href,
-                        it.paramKey,
-                        it.paramValue
-                      );
-                      return (
-                        <NavLink
-                          key={it.href}
-                          href={hrefWithParam}
-                          label={it.label}
-                          active={isActive(it.href)}
-                          onClick={() => setOpen(false)}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </details>
-
-            {/* Appointments */}
-            <div className="rounded-md border border-gray-100">
-              <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Appointments
-              </div>
-              <NavLink
-                href="/appointments/book"
-                label="Book"
-                active={isActive("/appointments/book")}
-                onClick={() => setOpen(false)}
-              />
-              <NavLink
-                href="/appointments/my"
-                label="My"
-                active={isActive("/appointments/my")}
-                onClick={() => setOpen(false)}
-              />
-              <NavLink
-                href="/appointments/find-therapist"
-                label="Find a therapist"
-                active={isActive("/appointments/find-therapist")}
-                onClick={() => setOpen(false)}
-              />
-              <NavLink
-                href="/appointments/insurance"
-                label="Insurance & fees"
-                active={isActive("/appointments/insurance")}
-                onClick={() => setOpen(false)}
-              />
-            </div>
-
-            {/* 👇 Availability in mobile as well */}
-            {showAvailability && (
-              <div className="rounded-md border border-gray-100">
-                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Therapist
+              {/* Appointments */}
+              <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                <p className="border-b border-gray-50 bg-gray-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  Appointments
+                </p>
+                <div className="p-1.5 space-y-0.5">
+                  {[
+                    { href: "/appointments/book", label: "Book an appointment", icon: "📅" },
+                    { href: "/appointments/my", label: "My appointments", icon: "🗓️" },
+                    { href: "/appointments/find-therapist", label: "Find a therapist", icon: "🔍" },
+                  ].map(item => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                        isActive(item.href)
+                          ? "bg-[#4b7eff]/8 font-medium text-[#4b7eff]"
+                          : "text-gray-700 hover:bg-gray-50"
+                      )}
+                    >
+                      <span>{item.icon}</span> {item.label}
+                    </Link>
+                  ))}
                 </div>
-                <NavLink
+              </div>
+
+              {/* Availability */}
+              {showAvailability && (
+                <Link
                   href="/availability"
-                  label="Availability"
-                  active={isActive("/availability")}
                   onClick={() => setOpen(false)}
-                />
-              </div>
-            )}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl border border-gray-100 px-4 py-3 text-sm font-medium transition-colors",
+                    isActive("/availability")
+                      ? "border-[#4b7eff]/20 bg-[#4b7eff]/5 text-[#4b7eff]"
+                      : "text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  <span className="text-base">📆</span> Availability
+                </Link>
+              )}
 
-            {/* Role links */}
-            {roleLinks.length > 0 && (
-              <div className="rounded-md border border-gray-100">
-                <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  For you
+              {/* Role links */}
+              {roleLinks.length > 0 && (
+                <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                  <p className="border-b border-gray-50 bg-gray-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    For you
+                  </p>
+                  <div className="p-1.5 space-y-0.5">
+                    {roleLinks.map(l => (
+                      <NavLink key={l.href} href={l.href} label={l.label} active={isActive(l.href)} onClick={() => setOpen(false)} />
+                    ))}
+                  </div>
                 </div>
-                {roleLinks.map((l) => (
-                  <NavLink
+              )}
+
+              {/* Static links */}
+              <div className="flex gap-2 pb-2 pt-1">
+                {[
+                  { href: "/resources", label: "Resources" },
+                  { href: "/about", label: "About" },
+                ].map(l => (
+                  <Link
                     key={l.href}
                     href={l.href}
-                    label={l.label}
-                    active={isActive(l.href)}
                     onClick={() => setOpen(false)}
-                  />
+                    className={cn(
+                      "flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium transition-colors",
+                      isActive(l.href)
+                        ? "border-[#4b7eff]/30 bg-[#4b7eff]/5 text-[#4b7eff]"
+                        : "text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {l.label}
+                  </Link>
                 ))}
               </div>
-            )}
 
-            {/* Static links */}
-            <div className="grid grid-cols-2 gap-2">
-              <NavLink
-                href="/resources"
-                label="Resources"
-                active={isActive("/resources")}
-                onClick={() => setOpen(false)}
-              />
-              <NavLink
-                href="/about"
-                label="About"
-                active={isActive("/about")}
-                onClick={() => setOpen(false)}
-              />
             </div>
-          </nav>
+          </div>
         </div>
       )}
     </header>

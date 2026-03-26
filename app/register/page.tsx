@@ -134,7 +134,7 @@
 //               Use this Patient ID with your password on the{" "}
 //               <Link
 //                 href="/login"
-//                 className="text-[var(--brand,#4b7eff)] underline"
+//                 className="text-[#4b7eff] underline"
 //               >
 //                 login page
 //               </Link>
@@ -288,7 +288,7 @@
 //           Staff member?{" "}
 //           <Link
 //             href="/register/staff"
-//             className="text-[var(--brand,#4b7eff)] hover:underline"
+//             className="text-[#4b7eff] hover:underline"
 //           >
 //             Register as therapist/receptionist
 //           </Link>
@@ -379,7 +379,7 @@ export default function RegisterPatientPage() {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-sky-50/40 via-white to-slate-50">
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 pb-16 pt-10 sm:px-6 lg:flex-row lg:items-center">
         {/* Left side - intro */}
         <div className="w-full lg:w-[45%] space-y-5">
@@ -391,7 +391,7 @@ export default function RegisterPatientPage() {
             <span>Register (Patient)</span>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 shadow-sm">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-medium text-blue-700 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             Patient registration
           </div>
@@ -407,7 +407,7 @@ export default function RegisterPatientPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white/80 p-4 text-xs text-slate-600 shadow-sm backdrop-blur">
+          <div className="rounded-2xl border border-blue-100/60 bg-white/80 p-4 text-xs text-slate-600 shadow-sm">
             <p className="font-medium text-slate-900 text-sm">
               Why we ask for your details
             </p>
@@ -430,7 +430,7 @@ export default function RegisterPatientPage() {
             Already have a Patient ID?{" "}
             <Link
               href="/login"
-              className="font-medium text-[var(--brand,#4b7eff)] hover:underline"
+              className="font-medium text-[#4b7eff] hover:underline"
             >
               <b>Log in here</b>
             </Link>
@@ -493,7 +493,7 @@ export default function RegisterPatientPage() {
           ) : (
             <form
               onSubmit={onSubmit}
-              className="rounded-2xl border border-slate-100 bg-white/90 p-6 shadow-sm backdrop-blur space-y-4"
+              className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md space-y-4"
             >
               {/* Section heading */}
               <div className="flex items-center justify-between gap-2">
@@ -523,7 +523,7 @@ export default function RegisterPatientPage() {
                     <option value="">Select...</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="other">Other</option>
+                    {/* <option value="other">Other</option> */}
                   </Select>
                 </div>
 
@@ -656,23 +656,18 @@ export default function RegisterPatientPage() {
               </div>
 
               <Button
-                className="
-    w-full
-    bg-blue-600 
-    hover:bg-blue-700 
-    text-white 
-    font-semibold 
-    py-3 
-    rounded-lg 
-    shadow-md 
-    transition 
-    duration-200 
-    disabled:opacity-60 
-    disabled:cursor-not-allowed
-  "
+                className="w-full rounded-xl py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] hover:brightness-105 active:brightness-95 shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={loading || !isPasswordValid}
               >
-                {loading ? "Creating..." : "Create patient account"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Creating...
+                  </span>
+                ) : "Create patient account"}
               </Button>
 
               <p className="mt-3 text-[11px] text-slate-500 text-center">
@@ -686,7 +681,7 @@ export default function RegisterPatientPage() {
             Staff member?{" "}
             <Link
               href="/register/staff"
-              className="text-[var(--brand,#4b7eff)] hover:underline"
+              className="text-[#4b7eff] hover:underline"
             >
               Register as therapist or receptionist
             </Link>

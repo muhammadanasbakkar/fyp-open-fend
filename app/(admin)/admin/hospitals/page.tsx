@@ -190,13 +190,17 @@ function HospitalsInner() {
   }
 
   return (
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Hospitals</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Add and manage hospitals/clinics available for in-person
-            appointments.
+          <p className="inline-flex items-center gap-2 rounded-full bg-[#4b7eff]/8 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4b7eff]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#4b7eff]" />
+            Admin
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900">Hospitals & Clinics</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Add and manage hospitals/clinics available for in-person appointments.
           </p>
         </div>
         <div className="w-full sm:w-72">
@@ -280,7 +284,7 @@ function HospitalsInner() {
               Description (optional)
             </label>
             <textarea
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff]"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -386,6 +390,7 @@ function HospitalsInner() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -69,34 +69,67 @@ function ProfileInner() {
     }
   }
 
-  if (loading) return <div className="p-6 text-sm text-gray-500">Loading…</div>;
+  if (loading) return (
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-[#4b7eff]" />
+        <p className="mt-3 text-sm text-gray-500">Loading profile…</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="mx-auto max-w-3xl p-6 space-y-4">
-      {err && <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">{err}</div>}
-      {msg && <div className="rounded-md bg-green-50 border border-green-200 p-3 text-sm text-green-700">{msg}</div>}
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10 space-y-6">
+      <div>
+        <p className="inline-flex items-center gap-2 rounded-full bg-[#4b7eff]/8 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4b7eff]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#4b7eff]" />
+          Settings
+        </p>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900">Profile Settings</h1>
+        <p className="mt-1 text-sm text-gray-500">Update your name, contact info, and session pricing.</p>
+      </div>
 
-      <div className="rounded-xl border bg-white p-4">
-        <p className="text-sm font-medium">Profile</p>
-        <div className="grid gap-3 sm:grid-cols-2 mt-3">
-          <Input placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} />
-          <Input placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} />
+      {err && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
+      {msg && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{msg}</div>}
+
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+        <p className="text-sm font-semibold text-gray-800">Personal Info</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Full name</label>
+            <Input placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Phone</label>
+            <Input placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} />
+          </div>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white p-4">
-        <p className="text-sm font-medium">Pricing</p>
-        <div className="grid gap-3 sm:grid-cols-3 mt-3">
-          <Select value={feesCurrency} onChange={e=>setFeesCurrency(e.target.value)}>
-            <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AED</option>
-          </Select>
-          <Input type="number" min="0" placeholder="Online fee" value={feesOnline} onChange={e=>setFeesOnline(e.target.value)} />
-          <Input type="number" min="0" placeholder="Default in-person fee" value={feesInPerson} onChange={e=>setFeesInPerson(e.target.value)} />
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+        <p className="text-sm font-semibold text-gray-800">Session Pricing</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Currency</label>
+            <Select value={feesCurrency} onChange={e=>setFeesCurrency(e.target.value)}>
+              <option>PKR</option><option>USD</option><option>EUR</option><option>GBP</option><option>AED</option>
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Online fee</label>
+            <Input type="number" min="0" placeholder="e.g. 3000" value={feesOnline} onChange={e=>setFeesOnline(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">In-person fee</label>
+            <Input type="number" min="0" placeholder="e.g. 4000" value={feesInPerson} onChange={e=>setFeesInPerson(e.target.value)} />
+          </div>
         </div>
-        <div className="mt-4">
-          <Button onClick={save}>Save</Button>
+        <div className="pt-2">
+          <Button onClick={save}>Save changes</Button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

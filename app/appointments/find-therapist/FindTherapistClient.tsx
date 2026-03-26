@@ -1,116 +1,3 @@
-// // app/appointments/find-therapist/FindTherapistClient.tsx  (Client Component)
-// "use client";
-
-// import { useEffect, useMemo, useState } from "react";
-// import { usePathname, useRouter, useSearchParams } from "next/navigation";
-// import { publicApi } from "@/lib/publicApi";
-// import TherapistCard, { TherapistCardProps } from "@/components/TherapistCard";
-// import FiltersBar from "@/components/FiltersBar";
-
-// type ListResponse = {
-//   items: TherapistCardProps[];
-//   total: number;
-//   page: number;
-//   limit: number;
-// };
-
-// export default function FindTherapistClient() {
-//   const sp = useSearchParams();
-//   const router = useRouter();
-//   const pathname = usePathname();
-
-//   const page = Number(sp.get("page") || "1");
-//   const limit = Number(sp.get("limit") || "12");
-
-//   const [data, setData] = useState<ListResponse | null>(null);
-//   const [loading, setLoading] = useState(false);
-//   const [err, setErr] = useState("");
-
-//   // stable string to depend on (sp object identity can change)
-//   const spString = useMemo(() => sp.toString(), [sp]);
-
-//   useEffect(() => {
-//     (async () => {
-//       setLoading(true);
-//       setErr("");
-//       setData(null);
-
-//       const qs = new URLSearchParams();
-//       ["q","city","modality","concern","population","setting","feeMin","feeMax","sort"].forEach(k => {
-//         const v = sp.get(k);
-//         if (v) qs.set(k, v);
-//       });
-//       qs.set("page", String(page));
-//       qs.set("limit", String(limit));
-
-//       try {
-//         const res = await publicApi<ListResponse>(`api/public/therapists?${qs.toString()}`);
-//         setData(res);
-//       } catch (e: any) {
-//         setErr(e.message || "Failed to load therapists");
-//       } finally {
-//         setLoading(false);
-//       }
-//     })();
-//   }, [spString, page, limit]);
-
-//   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
-
-//   function goto(p: number) {
-//     const qs = new URLSearchParams(spString);
-//     qs.set("page", String(p));
-//     router.push(`${pathname}?${qs.toString()}`); // SPA navigation
-//   }
-
-//   return (
-//     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 space-y-6">
-//       <div>
-//         <h1 className="text-2xl font-semibold">Find a therapist</h1>
-//         <p className="text-sm text-gray-600">Filter by city, modality, fee, and more.</p>
-//       </div>
-
-//       <FiltersBar />
-
-//       {err && (
-//         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-//           {err}
-//         </div>
-//       )}
-
-//       <div className="min-h-[200px]">
-//         {loading ? (
-//           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-//             {Array.from({ length: 6 }).map((_, i) => (
-//               <div key={i} className="h-28 rounded-2xl border bg-gray-100 animate-pulse" />
-//             ))}
-//           </div>
-//         ) : data && data.items.length ? (
-//           <>
-//             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-//               {data.items.map((t) => <TherapistCard key={t._id} {...t} />)}
-//             </div>
-
-//             <div className="mt-6 flex items-center justify-center gap-2">
-//               <button disabled={page<=1} onClick={()=>goto(page-1)} className="btn">Prev</button>
-//               <div className="text-sm text-gray-600">
-//                 Page <b>{page}</b> of <b>{totalPages}</b>
-//               </div>
-//               <button disabled={page>=totalPages} onClick={()=>goto(page+1)} className="btn">Next</button>
-//             </div>
-//           </>
-//         ) : (
-//           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-//             No therapists matched your filters.
-//           </div>
-//         )}
-//       </div>
-
-//       <style jsx>{`.btn{ @apply inline-flex items-center rounded-lg border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed; }`}</style>
-//     </div>
-//   );
-// }
-
-
 // app/appointments/find-therapist/FindTherapistClient.tsx
 "use client";
 
@@ -139,7 +26,6 @@ export default function FindTherapistClient() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // stable string to depend on
   const spString = useMemo(() => sp.toString(), [sp]);
 
   useEffect(() => {
@@ -159,9 +45,7 @@ export default function FindTherapistClient() {
       qs.set("limit", String(limit));
 
       try {
-        const res = await publicApi<ListResponse>(
-          `api/public/therapists?${qs.toString()}`
-        );
+        const res = await publicApi<ListResponse>(`api/public/therapists?${qs.toString()}`);
         setData(res);
       } catch (e: any) {
         setErr(e.message || "Failed to load therapists");
@@ -172,13 +56,8 @@ export default function FindTherapistClient() {
   }, [spString, page, limit, sp]);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
-
-  const firstItem =
-    data && data.total > 0 ? (page - 1) * data.limit + 1 : 0;
-  const lastItem =
-    data && data.total > 0
-      ? Math.min(page * data.limit, data.total)
-      : 0;
+  const firstItem = data && data.total > 0 ? (page - 1) * data.limit + 1 : 0;
+  const lastItem = data && data.total > 0 ? Math.min(page * data.limit, data.total) : 0;
 
   function goto(p: number) {
     const qs = new URLSearchParams(spString);
@@ -187,95 +66,107 @@ export default function FindTherapistClient() {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-sky-50/40 via-white to-slate-50">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 shadow-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Find a therapist that fits your needs
-            </div>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
-              Find a therapist
-            </h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Filter by city, speciality, fee range and care setting. 
-            </p>
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-[#eef2ff] to-[#f8faff]">
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-[#3a5bef] via-[#4b7eff] to-[#7c3aed] px-4 pb-14 pt-8 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/90">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            Therapist Directory
+          </span>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+            Find Your Therapist
+          </h1>
+          <p className="mt-1.5 max-w-xl text-sm text-white/75">
+            Browse licensed professionals filtered by city, specialty, fee range, and care setting.
+            Every profile is verified by our clinical team.
+          </p>
+
+          {/* Trust stats */}
+          <div className="mt-6 flex flex-wrap gap-4">
+            {[
+              { value: "100+", label: "Verified therapists" },
+              { value: "10+", label: "Specializations" },
+              { value: "Secure", label: "Booking & payments" },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2">
+                <span className="text-sm font-bold text-white">{s.value}</span>
+                <span className="text-xs text-white/70">{s.label}</span>
+              </div>
+            ))}
           </div>
-
-          {!loading && data && (
-            <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-xs text-slate-600 shadow-sm">
-              <p className="font-medium text-slate-800">
-                Search summary
-              </p>
-              <p className="mt-1">
-                Showing{" "}
-                <span className="font-semibold">
-                  {data.total ? `${firstItem}-${lastItem}` : 0}
-                </span>{" "}
-                of{" "}
-                <span className="font-semibold">
-                  {data.total}
-                </span>{" "}
-                therapists
-              </p>
-              {sp.get("city") && (
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  City filter: <span className="font-medium">{sp.get("city")}</span>
-                </p>
-              )}
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Filters */}
-        <section className="rounded-2xl border border-slate-100 bg-white/90 p-4 shadow-sm">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 -mt-6 pb-16 space-y-5">
+
+        {/* Filters card */}
+        <section className="overflow-hidden rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <div className="mb-4 flex items-center gap-2">
+            <svg className="h-4 w-4 text-[#4b7eff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            </svg>
+            <p className="text-sm font-semibold text-gray-900">Filter &amp; Search</p>
+          </div>
           <FiltersBar />
         </section>
 
-        {/* Error state */}
+        {/* Error */}
         {err && (
-          <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
-            <p className="font-medium">Could not load therapists</p>
-            <p className="mt-0.5 text-xs">
-              {err}
-            </p>
+          <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 shadow-sm">
+            <svg className="mt-0.5 h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-red-700">Could not load therapists</p>
+              <p className="mt-0.5 text-xs text-red-600">{err}</p>
+            </div>
           </div>
         )}
 
-        {/* Result list */}
-        <section className="rounded-2xl border border-slate-100 bg-white/90 p-4 sm:p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-2 text-xs text-slate-500">
-            <span>
-              {loading
-                ? "Searching available therapists"
-                : data && data.total
-                ? `Found ${data.total} therapist${data.total > 1 ? "s" : ""}`
-                : "No therapists found for current filters"}
-            </span>
+        {/* Results */}
+        <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+          {/* Results header */}
+          <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+              </svg>
+              <p className="text-sm font-semibold text-gray-900">
+                {loading
+                  ? "Searching…"
+                  : data && data.total
+                  ? `${data.total} therapist${data.total !== 1 ? "s" : ""} found`
+                  : "No results"}
+              </p>
+            </div>
+            {!loading && data && data.total > 0 && (
+              <p className="text-xs text-gray-400">
+                Showing {firstItem}–{lastItem} of {data.total}
+              </p>
+            )}
           </div>
 
-          <div className="min-h-[220px]">
+          <div className="min-h-[280px] p-5">
             {loading ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-slate-200 animate-pulse" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 w-2/3 rounded bg-slate-200 animate-pulse" />
-                        <div className="h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
+                  <div key={i} className="rounded-2xl border-2 border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="h-14 w-14 shrink-0 animate-pulse rounded-xl bg-gray-100" />
+                      <div className="flex-1 space-y-2 pt-1">
+                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-gray-100" />
+                        <div className="h-3 w-1/3 animate-pulse rounded-full bg-gray-100" />
+                        <div className="mt-2 flex gap-1">
+                          <div className="h-4 w-14 animate-pulse rounded-full bg-gray-100" />
+                          <div className="h-4 w-14 animate-pulse rounded-full bg-gray-100" />
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-4 space-y-2">
-                      <div className="h-2.5 w-full rounded bg-slate-100 animate-pulse" />
-                      <div className="h-2.5 w-5/6 rounded bg-slate-100 animate-pulse" />
+                    <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                      <div className="h-3 w-16 animate-pulse rounded-full bg-gray-100" />
+                      <div className="h-6 w-24 animate-pulse rounded-lg bg-gray-100" />
                     </div>
-                    <div className="mt-4 h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
                   </div>
                 ))}
               </div>
@@ -288,42 +179,72 @@ export default function FindTherapistClient() {
                 </div>
 
                 {/* Pagination */}
-                <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-                  <p className="text-xs text-slate-500">
-                    Page <span className="font-semibold">{page}</span> of{" "}
-                    <span className="font-semibold">{totalPages}</span>
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={page <= 1}
-                      onClick={() => goto(page - 1)}
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-                    >
-                      <span className="text-sm">‹</span>
-                      <span>Previous</span>
-                    </button>
-                    <button
-                      disabled={page >= totalPages}
-                      onClick={() => goto(page + 1)}
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-                    >
-                      <span>Next</span>
-                      <span className="text-sm">›</span>
-                    </button>
+                {totalPages > 1 && (
+                  <div className="mt-6 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-between">
+                    <p className="text-xs text-gray-500">
+                      Page <span className="font-semibold text-gray-800">{page}</span> of{" "}
+                      <span className="font-semibold text-gray-800">{totalPages}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={page <= 1}
+                        onClick={() => goto(page - 1)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] disabled:cursor-not-allowed disabled:opacity-40 transition-all"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                        Previous
+                      </button>
+
+                      {/* Page number chips */}
+                      <div className="hidden items-center gap-1 sm:flex">
+                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                          const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                          return (
+                            <button
+                              key={p}
+                              onClick={() => goto(p)}
+                              className={[
+                                "flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-all",
+                                p === page
+                                  ? "bg-[#4b7eff] text-white shadow-sm"
+                                  : "border-2 border-gray-200 text-gray-600 hover:border-[#4b7eff]/40 hover:text-[#4b7eff]",
+                              ].join(" ")}
+                            >
+                              {p}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        disabled={page >= totalPages}
+                        onClick={() => goto(page + 1)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] disabled:cursor-not-allowed disabled:opacity-40 transition-all"
+                      >
+                        Next
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             ) : (
-              <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-amber-500">
-                  !
+              <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50">
+                  <svg className="h-8 w-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
                 </div>
-                <p className="text-sm font-medium text-amber-800">
-                  No therapists matched your filters
-                </p>
-                <p className="max-w-sm text-xs text-amber-700">
-                  Try removing one or two filters, expanding the fee range or choosing a nearby city to see more options.
-                </p>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">No therapists matched your filters</p>
+                  <p className="mt-1 max-w-xs text-xs text-gray-500">
+                    Try removing one or two filters, expanding the fee range, or choosing a nearby city.
+                  </p>
+                </div>
               </div>
             )}
           </div>

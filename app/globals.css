@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+:root {
+  --brand: #4b7eff;
+  --brand2: #6aa7ff;
+  --brand-teal: #0f766e;
+}
+
 
 /* :root {
   --brand: #4b7eff;
@@ -750,7 +756,8 @@ a {
     text-align: center;
   }
 }
-.button-primary{
-    color: oklch(0.79 0.1 231.14);
-
+/* Smooth focus ring for all interactive elements */
+*:focus-visible {
+  outline: 2px solid var(--brand, #4b7eff);
+  outline-offset: 2px;
 }

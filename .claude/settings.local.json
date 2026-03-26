@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"^//\\\\|^[[:space:]]*//\")",
+      "Bash(npx tsc:*)",
+      "Read(//c/Users/ADM/Desktop/uni/7th sem/fyp/fyp-backend/**)",
+      "Bash(node -e \"require\\(''./controllers/controller.appointments.js''\\); console.log\\(''OK''\\)\")",
+      "Bash(node -e \"require\\(''./routes/appointments.js''\\); console.log\\(''OK''\\)\")"
+    ]
+  }
+}

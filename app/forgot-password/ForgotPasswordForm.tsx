@@ -144,12 +144,12 @@ export default function ForgotPasswordPage({ token }: Props) {
   }
 
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
       <div className="mx-auto max-w-md px-4 sm:px-6 py-14">
         {/* Header */}
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-[var(--brand,#4b7eff)]/10 grid place-items-center">
-            <span className="text-lg font-bold text-[var(--brand,#4b7eff)]">PT</span>
+          <div className="mx-auto mb-3 h-10 w-10 rounded-xl bg-[#4b7eff]/10 grid place-items-center">
+            <span className="text-lg font-bold text-[#4b7eff]">PT</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {step === "request" && "Forgot password"}
@@ -195,7 +195,7 @@ export default function ForgotPasswordPage({ token }: Props) {
               </Button>
               <p className="mt-2 text-xs text-gray-500">
                 Remembered your password?{" "}
-                <Link className="text-[var(--brand,#4b7eff)] hover:underline" href="/login">
+                <Link className="text-[#4b7eff] hover:underline" href="/login">
                   Back to login
                 </Link>
               </p>
@@ -221,7 +221,7 @@ export default function ForgotPasswordPage({ token }: Props) {
                     type="button"
                     onClick={handleResend}
                     disabled={loading || cooldown > 0}
-                    className="text-xs text-[var(--brand,#4b7eff)] disabled:text-gray-400 hover:underline"
+                    className="text-xs text-[#4b7eff] disabled:text-gray-400 hover:underline"
                   >
                     {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
                   </button>
@@ -243,7 +243,7 @@ export default function ForgotPasswordPage({ token }: Props) {
                 <button
                   type="button"
                   onClick={() => setStep("request")}
-                  className="text-[var(--brand,#4b7eff)] hover:underline"
+                  className="text-[#4b7eff] hover:underline"
                 >
                   Use a different address
                 </button>
@@ -287,7 +287,7 @@ export default function ForgotPasswordPage({ token }: Props) {
           {step === "done" && (
             <div className="text-sm text-gray-700">
               Password updated. Taking you to{" "}
-              <Link href="/login" className="text-[var(--brand,#4b7eff)] hover:underline">
+              <Link href="/login" className="text-[#4b7eff] hover:underline">
                 login
               </Link>
               …

@@ -115,7 +115,7 @@ function TreatmentPlanInner() {
       };
 
       await api(`api/treatment-plans/${patientId}`, {
-        method: "PUT",
+        method: "POST",
         headers: {
           ...authHeader(token || undefined),
           "Content-Type": "application/json",
@@ -132,17 +132,21 @@ function TreatmentPlanInner() {
   }
 
   return (
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
     <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 space-y-6">
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Treatment Plan</h1>
-          <p className="mt-1 text-sm text-gray-600">Patient ID: {patientId}</p>
-          <p className="mt-1 text-sm text-gray-600">Therapist Name: {patientId}</p>
+          <p className="inline-flex items-center gap-2 rounded-full bg-[#4b7eff]/8 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4b7eff]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#4b7eff]" />
+            Treatment Plan
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900">Treatment Plan</h1>
+          <p className="mt-1 text-sm text-gray-500">Patient ID: {patientId}</p>
         </div>
 
         {canEdit && (
           <Button onClick={save} disabled={saving || loading}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : "Save plan"}
           </Button>
         )}
       </div>
@@ -155,13 +159,16 @@ function TreatmentPlanInner() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border bg-white p-6">Loading...</div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-[#4b7eff]" />
+          <p className="mt-3 text-sm text-gray-500">Loading treatment plan…</p>
+        </div>
       ) : (
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 space-y-6">
+        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-6">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Symptoms</label>
             <textarea
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff] disabled:opacity-50 disabled:bg-gray-50"
               rows={3}
               value={problemList}
               onChange={(e) => setProblemList(e.target.value)}
@@ -170,8 +177,8 @@ function TreatmentPlanInner() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Diagnosis</label>
-           <textarea
-              className="w-full rounded-md border px-3 py-2 text-sm"
+            <textarea
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff] disabled:opacity-50 disabled:bg-gray-50"
               rows={3}
               value={diagnosis}
               onChange={(e) => setDiagnosis(e.target.value)}
@@ -181,7 +188,7 @@ function TreatmentPlanInner() {
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Treatment Approach</label>
             <textarea
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff] disabled:opacity-50 disabled:bg-gray-50"
               rows={3}
               value={treatmentApproach}
               onChange={(e) => setTreatmentApproach(e.target.value)}
@@ -206,7 +213,7 @@ function TreatmentPlanInner() {
               <h2 className="text-sm font-semibold">Goals</h2>
               {canEdit && (
                 <button
-                  className="text-xs text-[var(--brand,#4b7eff)] underline"
+                  className="text-xs text-[#4b7eff] underline"
                   onClick={() => setGoals((prev) => [...prev, { title: "", targetDate: "", status: "active" }])}
                   type="button"
                 >
@@ -239,7 +246,7 @@ function TreatmentPlanInner() {
                   <div className="sm:col-span-3">
                     <label className="mb-1 block text-xs text-gray-600">Status</label>
                     <select
-                      className="w-full rounded-md border px-3 py-2 text-sm"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff] disabled:opacity-50 disabled:bg-gray-50"
                       value={g.status || "active"}
                       onChange={(e) => updateGoal(i, { status: e.target.value })}
                       disabled={!canEdit}
@@ -260,7 +267,7 @@ function TreatmentPlanInner() {
               <h2 className="text-sm font-semibold">Interventions</h2>
               {canEdit && (
                 <button
-                  className="text-xs text-[var(--brand,#4b7eff)] underline"
+                  className="text-xs text-[#4b7eff] underline"
                   onClick={() => setInterventions((prev) => [...prev, { title: "", frequency: "", notes: "" }])}
                   type="button"
                 >
@@ -293,7 +300,7 @@ function TreatmentPlanInner() {
                   <div className="sm:col-span-3">
                     <label className="mb-1 block text-xs text-gray-600">Notes</label>
                     <textarea
-                      className="w-full rounded-md border px-3 py-2 text-sm"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff] disabled:opacity-50 disabled:bg-gray-50"
                       rows={3}
                       value={it.notes || ""}
                       onChange={(e) => updateIntervention(i, { notes: e.target.value })}
@@ -306,6 +313,7 @@ function TreatmentPlanInner() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
