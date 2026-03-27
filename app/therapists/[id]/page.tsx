@@ -162,12 +162,12 @@ export default function TherapistProfilePage() {
     if (!id) return;
     setLoading(true);
     setErr("");
-    publicApi<{ therapist: Therapist; clinics: Clinic[]; nextAvailability: NextAvail }>(
+    publicApi<{ therapist: Therapist; hospitals: Clinic[]; nextAvailability: NextAvail }>(
       `api/therapists/therapists/${id}`
     )
       .then((data) => {
         setTherapist(data.therapist);
-        setClinics(data.clinics || []);
+        setClinics(data.hospitals || []);
         setNextAvail(data.nextAvailability || null);
       })
       .catch((e: any) => setErr(e.message || "Failed to load profile"))
@@ -178,10 +178,9 @@ export default function TherapistProfilePage() {
   const onlineFee = therapist?.fees?.online;
   const inPersonFee = therapist?.fees?.inPerson;
 
-  const avatarSrc = "" 
-  // therapist?.profilePicture
-  //   ? `${CDN}/${therapist.profilePicture.replace(/^\//, "")}`
-  //   : "/default-avatar.png";
+  const avatarSrc = therapist?.profilePicture
+    ? `${CDN}/${therapist.profilePicture.replace(/^\//, "")}`
+    : null;
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
@@ -221,14 +220,22 @@ export default function TherapistProfilePage() {
                   {/* avatar */}
                   <div className="flex items-end gap-4">
                     <div className="relative">
-                      <Image
-                        src={avatarSrc}
-                        alt={therapist.name}
-                        width={96}
-                        height={96}
-                        className="h-24 w-24 rounded-2xl object-cover ring-4 ring-white shadow-md"
-                        onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
-                      />
+                      {avatarSrc ? (
+                        <Image
+                          src={avatarSrc}
+                          alt={therapist.name}
+                          width={96}
+                          height={96}
+                          className="h-24 w-24 rounded-2xl object-cover ring-4 ring-white shadow-md"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-[#4b7eff] to-[#7c3aed] ring-4 ring-white shadow-md flex items-center justify-center text-3xl font-bold text-white">
+                          {therapist.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       {nextAvail && (
                         <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
                           <span className="h-2 w-2 rounded-full bg-white" />

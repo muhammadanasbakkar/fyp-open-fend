@@ -305,7 +305,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Input from "@/components/Input";
 import Select from "@/components/Select";
-import Swal from "sweetalert2";
+import { alertWarning, alertError } from "@/components/MySwal";
 import Button from "@/components/Button";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/";
@@ -339,11 +339,7 @@ export default function RegisterPatientPage() {
     try {
       if (!isPasswordValid) {
         setLoading(false);
-        Swal.fire({
-          icon: "warning",
-          title: "Weak password",
-          text: "Password must be at least 8 characters and include uppercase, lowercase, number and symbol.",
-        });
+        alertWarning("Weak password", "Password must be at least 8 characters and include uppercase, lowercase, number and symbol.");
         return;
       }
 
@@ -356,11 +352,7 @@ export default function RegisterPatientPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        Swal.fire({
-          icon: "error",
-          title: "Registration failed",
-          text: data?.msg || "Registration failed",
-        });
+        alertError("Registration failed", data?.msg || "Registration failed");
         return;
       }
 
