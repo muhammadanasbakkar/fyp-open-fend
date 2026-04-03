@@ -23,6 +23,19 @@ type Hospital = {
   updatedAt?: string;
 };
 
+type PendingHospital = {
+  _id: string;
+  name: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  type?: string;
+  description?: string;
+  adminUser?: { _id: string; name: string; email: string } | null;
+  createdAt: string;
+};
+
 export default function HospitalsAdminPage() {
   return (
     <Protected>
@@ -37,6 +50,13 @@ function HospitalsInner() {
   const { token } = useAuth();
   const [list, setList] = useState<Hospital[]>([]);
   const [loadingList, setLoadingList] = useState(true);
+  const [pending, setPending] = useState<PendingHospital[]>([]);
+  const [approving, setApproving] = useState<string | null>(null);
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [resetPwdId, setResetPwdId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [q, setQ] = useState("");
@@ -84,14 +104,74 @@ function HospitalsInner() {
     setMsg("");
     setLoadingList(true);
     try {
-      const res = await api("api/public/hospitals", {
-        headers: authHeader(token || undefined) as HeadersInit,
-      });
+      const [res, pendingRes] = await Promise.all([
+        api("api/public/hospitals", { headers: authHeader(token || undefined) as HeadersInit }),
+        api("api/hospital/pending", { headers: authHeader(token || undefined) as HeadersInit }).catch(() => ({ hospitals: [] })),
+      ]);
       setList(Array.isArray(res) ? res : res?.hospitals || []);
+      setPending((pendingRes as any)?.hospitals || []);
     } catch (e: any) {
       setErr(e.message || "Failed to load hospitals.");
     } finally {
       setLoadingList(false);
+    }
+  }
+
+  async function approveHospital(id: string) {
+    setApproving(id);
+    try {
+      await api(`api/hospital/${id}/approve`, {
+        method: "PATCH",
+        headers: authHeader(token || undefined) as HeadersInit,
+      });
+      setPending(prev => prev.filter(h => h._id !== id));
+      setMsg("Hospital approved successfully.");
+      load();
+    } catch (e: any) {
+      setErr(e.message || "Approval failed.");
+    } finally {
+      setApproving(null);
+    }
+  }
+
+  async function resetPassword() {
+    if (!resetPwdId) return;
+    if (newPassword.length < 8) { setErr("Password must be at least 8 characters."); return; }
+    setResetting(true);
+    setErr("");
+    try {
+      await api(`api/hospital/${resetPwdId}/reset-password`, {
+        method: "PATCH",
+        headers: { ...(authHeader(token || undefined) as HeadersInit), "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      });
+      setMsg("Password reset successfully. The hospital admin can now log in with the new password.");
+    } catch (e: any) {
+      setErr(e.message || "Reset failed.");
+    } finally {
+      setResetting(false);
+      setResetPwdId(null);
+      setNewPassword("");
+    }
+  }
+
+  async function rejectHospital() {
+    if (!rejectId) return;
+    setApproving(rejectId);
+    try {
+      await api(`api/hospital/${rejectId}/reject`, {
+        method: "PATCH",
+        headers: { ...(authHeader(token || undefined) as HeadersInit), "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: rejectReason }),
+      });
+      setPending(prev => prev.filter(h => h._id !== rejectId));
+      setMsg("Hospital application rejected.");
+    } catch (e: any) {
+      setErr(e.message || "Rejection failed.");
+    } finally {
+      setApproving(null);
+      setRejectId(null);
+      setRejectReason("");
     }
   }
 
@@ -192,6 +272,115 @@ function HospitalsInner() {
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 space-y-8">
+
+      {/* ── Reset password modal ── */}
+      {resetPwdId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+            <h3 className="font-semibold text-gray-900">Reset Admin Password</h3>
+            <p className="text-sm text-gray-600">Set a new password for this hospital&apos;s admin account.</p>
+            <input
+              type="password"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+              placeholder="New password (min 8 chars)"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setResetPwdId(null); setNewPassword(""); }} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={resetPassword} disabled={resetting} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
+                {resetting ? "Resetting…" : "Reset Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reject modal ── */}
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+            <h3 className="font-semibold text-gray-900">Reject Application</h3>
+            <p className="text-sm text-gray-600">Optionally provide a reason for rejection.</p>
+            <textarea
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm resize-none focus:border-red-400 focus:outline-none"
+              rows={3}
+              placeholder="Reason (optional)…"
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setRejectId(null); setRejectReason(""); }} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={rejectHospital} disabled={!!approving} className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition-colors disabled:opacity-50">
+                {approving ? "Rejecting…" : "Confirm Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending applications ── */}
+      {pending.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-amber-100">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">{pending.length}</span>
+              <p className="text-sm font-semibold text-amber-800">Pending Hospital Applications</p>
+            </div>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {pending.map(h => (
+              <div key={h._id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
+                <div>
+                  <p className="font-medium text-gray-900">{h.name}
+                    <span className="ml-2 text-xs font-normal text-gray-500 capitalize">{h.type || "hospital"}</span>
+                  </p>
+                  <p className="text-xs text-gray-600">{h.city}{h.address ? ` · ${h.address}` : ""}</p>
+                  {h.email && <p className="text-xs text-gray-500">{h.email}{h.phone ? ` · ${h.phone}` : ""}</p>}
+                  {h.adminUser && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Admin: <span className="font-medium text-gray-700">{h.adminUser.name}</span> ({h.adminUser.email})
+                    </p>
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Applied {new Date(h.createdAt).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}
+                  </p>
+                  {h.description && <p className="mt-1 text-xs text-gray-500 max-w-sm">{h.description}</p>}
+                </div>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  <button
+                    onClick={() => approveHospital(h._id)}
+                    disabled={approving === h._id}
+                    className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                  >
+                    {approving === h._id ? "Approving…" : "Approve"}
+                  </button>
+                  <button
+                    onClick={() => setRejectId(h._id)}
+                    disabled={!!approving}
+                    className="rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                  {h.adminUser && (
+                    <button
+                      onClick={() => setResetPwdId(h._id)}
+                      className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      Reset Password
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="inline-flex items-center gap-2 rounded-full bg-[#4b7eff]/8 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4b7eff]">
@@ -371,6 +560,12 @@ function HospitalsInner() {
                       className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={() => setResetPwdId(h._id)}
+                      className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 hover:bg-blue-100"
+                    >
+                      Reset Pwd
                     </button>
                     <button
                       onClick={() => remove(h._id)}

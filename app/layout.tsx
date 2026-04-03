@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/lib/auth";
 import { Metadata } from "next";
+import TherapistChatbot from "@/components/TherapistChatbot";
 
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
+          <TherapistChatbot />
         </AuthProvider>
         <Footer />
       </body>

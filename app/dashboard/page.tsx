@@ -2,6 +2,7 @@
 
 import Protected from "@/components/Protected";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import SpecialtiesModal from "./SpecialtiesModal";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -724,6 +725,12 @@ export default function Dashboard() {
   const { user, token } = useAuth() as { user: any; token?: string };
   const [showSpecialtiesModal, setShowSpecialtiesModal] = useState(false);
   const modalDecisionMadeRef = useRef(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role === "hospitalAdmin") router.replace("/hospital/dashboard");
+    if (user?.role === "supervisor") router.replace("/supervisor");
+  }, [user, router]);
 
   const roleMeta = ROLE_META[user?.role] ?? ROLE_META.patient;
 

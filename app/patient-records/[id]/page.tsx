@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import Protected from "@/components/Protected";
 import { useAuth } from "@/lib/auth";
 import { api, authHeader } from "@/lib/api";
-import Tesseract from "tesseract.js";
 import Button from "@/components/Button";
 import { cleanTranscript } from "@/utils/cleanTranscript";
 import { useSpeechToText } from "@/app/hooks/useSpeechToText";
@@ -160,9 +159,6 @@ function PatientRecordInner() {
   const params = useParams<{ id: string }>();
   const patientId = params?.id;
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-
   const { token, user } = useAuth();
   const role = user?.role;
 
@@ -184,12 +180,8 @@ function PatientRecordInner() {
   const [showStructured, setShowStructured] = useState(true);
 
   const [adding, setAdding] = useState(false);
+  const [anonymizing, setAnonymizing] = useState(false);
   const [summary, setSummary] = useState<any | null>(null);
-
-  // OCR
-  const [ocrBusy, setOcrBusy] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrPreviewUrl, setOcrPreviewUrl] = useState<string | null>(null);
 
   const canWrite = role === "therapist";
 
@@ -208,6 +200,24 @@ function PatientRecordInner() {
 
   const baseAtStartRef = useRef<string>("");
   const prevListeningRef = useRef<boolean>(false);
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+
+  async function anonymizeText(text: string): Promise<string> {
+    try {
+      const res: any = await api("api/chatbot/anonymize", {
+        method: "POST",
+        headers: {
+          ...(authHeader(tokenRef.current || undefined) as HeadersInit),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+      return res?.anonymized || text;
+    } catch {
+      return text;
+    }
+  }
 
   useEffect(() => {
     if (listening && !prevListeningRef.current) {
@@ -233,81 +243,37 @@ function PatientRecordInner() {
       setNoteBody(cleaned);
 
       if (autoStructure) {
-        const parsed = parseSoapFromText(cleaned);
-
         const append = (oldV: string, newV: string) =>
           oldV && newV ? `${oldV} ${newV}` : oldV || newV || "";
 
-        setSubjective((old) => append(old, parsed.subjective));
-        setObjective((old) => append(old, parsed.objective));
-        setAssessment((old) => append(old, parsed.assessment));
-        setPlan((old) => append(old, parsed.plan));
-        setAdditionalNotes((old) => append(old, parsed.additionalNotes));
+        // Anonymize names/identifiers first, then auto-structure into SOAP
+        (async () => {
+          setAnonymizing(true);
+          let textToStructure = cleaned;
+          try {
+            textToStructure = await anonymizeText(cleaned);
+            setNoteBody(textToStructure);
+          } catch {
+            // silently fall back to original
+          } finally {
+            setAnonymizing(false);
+          }
 
-        // whatever is left stays in scratch
-        setNoteBody(parsed.residual);
-        setShowStructured(true);
+          const parsed = parseSoapFromText(textToStructure);
+          setSubjective((old) => append(old, parsed.subjective));
+          setObjective((old) => append(old, parsed.objective));
+          setAssessment((old) => append(old, parsed.assessment));
+          setPlan((old) => append(old, parsed.plan));
+          setAdditionalNotes((old) => append(old, parsed.additionalNotes));
+          setNoteBody(parsed.residual);
+          setShowStructured(true);
+        })();
       }
     }
     prevListeningRef.current = listening;
-  }, [listening, autoStructure, noteBody]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening, autoStructure]);
 
-  function ocrLangFor(lang: string) {
-    if (lang.startsWith("ur")) return "eng+urd";
-    if (lang.startsWith("hi")) return "eng+hin";
-    return "eng";
-  }
-
-  const appendText = (oldV: string, newV: string) =>
-    oldV && newV ? `${oldV} ${newV}` : oldV || newV || "";
-
-  async function handleImageFiles(files: FileList | null) {
-    if (!files || !files[0]) return;
-    const file = files[0];
-
-    if (ocrPreviewUrl) URL.revokeObjectURL(ocrPreviewUrl);
-    setOcrPreviewUrl(URL.createObjectURL(file));
-
-    setOcrBusy(true);
-    setOcrProgress(0);
-    setErr("");
-    setMsg("");
-
-    try {
-      const { data } = await Tesseract.recognize(file, ocrLangFor(sttLang), {
-        logger: (m) => {
-          if (m.status === "recognizing text" && typeof m.progress === "number") {
-            setOcrProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
-
-      const raw = (data.text || "").trim();
-      if (!raw) {
-        setErr("Could not extract any text from the image.");
-        return;
-      }
-
-      const cleaned = cleanTranscript(raw);
-      setNoteBody((prev) => appendText(prev, cleaned));
-
-      const parsed = parseSoapFromText(cleaned);
-      setSubjective((old) => appendText(old, parsed.subjective));
-      setObjective((old) => appendText(old, parsed.objective));
-      setAssessment((old) => appendText(old, parsed.assessment));
-      setPlan((old) => appendText(old, parsed.plan));
-      setAdditionalNotes((old) => appendText(old, parsed.additionalNotes));
-      setNoteBody(parsed.residual);
-
-      setMsg("Extracted text from image.");
-      setShowStructured(true);
-    } catch (e: any) {
-      setErr(e?.message || "OCR failed. Try a clearer image.");
-    } finally {
-      setOcrBusy(false);
-      setOcrProgress(0);
-    }
-  }
 
   function normalizeNotes(raw: NoteRaw[]): SoapNote[] {
     return (Array.isArray(raw) ? raw : [])
@@ -532,49 +498,6 @@ function PatientRecordInner() {
         </div>
       )}
 
-      {/* OCR */}
-      {canWrite && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900">Upload image (OCR)</p>
-            {ocrBusy && <span className="text-xs text-gray-600">Extracting… {ocrProgress}%</span>}
-          </div>
-
-          <div className="mt-2 flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => handleImageFiles(e.target.files)}
-              disabled={ocrBusy}
-              className="block text-sm"
-            />
-            {ocrPreviewUrl && (
-              <a
-                href={ocrPreviewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-[var(--brand,#4b7eff)] hover:underline"
-              >
-                Preview selected image
-              </a>
-            )}
-          </div>
-
-          {ocrBusy && (
-            <div className="mt-2 h-2 w-full rounded bg-gray-100">
-              <div
-                className="h-2 rounded bg-[var(--brand,#4b7eff)] transition-all"
-                style={{ width: `${ocrProgress}%` }}
-              />
-            </div>
-          )}
-
-          <p className="mt-2 text-xs text-gray-500">
-            Tip: for Urdu/Hindi OCR, set dictation language first (OCR uses eng+urd / eng+hin).
-          </p>
-        </div>
-      )}
-
       {/* Add SOAP note */}
       {canWrite && (
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
@@ -612,8 +535,15 @@ function PatientRecordInner() {
             </div>
           </div>
 
+          {anonymizing && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700">
+              <span className="inline-block h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
+              Anonymizing names and identifiers with AI…
+            </div>
+          )}
+
           <p className="mb-3 mt-1 text-xs text-gray-600">
-            Dictate freely, then structure into SOAP automatically or manually.
+            Dictate freely — names and identifiers will be anonymized automatically, then structured into SOAP.
           </p>
 
           <label className="mb-1 block text-sm text-gray-700">Scratch / Dictation text</label>
@@ -658,6 +588,24 @@ function PatientRecordInner() {
                 className="text-[var(--brand,#4b7eff)] hover:underline"
               >
                 Clean up text
+              </button>
+
+              <button
+                type="button"
+                disabled={anonymizing || !noteBody.trim()}
+                onClick={async () => {
+                  if (!noteBody.trim()) return;
+                  setAnonymizing(true);
+                  try {
+                    const anonymized = await anonymizeText(noteBody);
+                    setNoteBody(anonymized);
+                  } finally {
+                    setAnonymizing(false);
+                  }
+                }}
+                className="text-violet-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {anonymizing ? "Anonymizing…" : "🔒 Anonymize names"}
               </button>
 
               <button

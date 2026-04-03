@@ -21,9 +21,18 @@ const BASE = process.env.NEXT_PUBLIC_API_URL!;
 // }
 
 export async function api(path: string, init: RequestInit = {}, base = "") {
-  const res = await fetch(`${BASE}${path.startsWith("/") ? path :  path}`, {
+  // Auto-inject stored token so callers never silently omit Authorization
+  const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const existingHeaders = (init.headers as Record<string, string>) || {};
+  const authorizationHeader: Record<string, string> =
+    storedToken && !existingHeaders["Authorization"]
+      ? { Authorization: `Bearer ${storedToken}` }
+      : {};
+
+  const res = await fetch(`${BASE}${path.startsWith("/") ? path : path}`, {
     credentials: "include",
     ...init,
+    headers: { ...authorizationHeader, ...existingHeaders },
   });
 
   if (res.status === 401) {

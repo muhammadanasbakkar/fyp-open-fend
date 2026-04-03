@@ -20,13 +20,15 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 export default function Protected({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+  const { token, hydrated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!token) router.replace("/login");
-  }, [token, router]);
+    if (hydrated && !token) router.replace("/login");
+  }, [hydrated, token, router]);
 
-  if (!token) return null; // or a spinner
+  // Still loading from localStorage — show nothing to avoid flash redirect
+  if (!hydrated) return null;
+  if (!token) return null;
   return <>{children}</>;
 }

@@ -485,6 +485,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  function roleHome(role: string) {
+    if (role === "hospitalAdmin") return "/hospital/dashboard";
+    if (role === "supervisor") return "/supervisor";
+    return "/dashboard";
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
@@ -492,10 +498,11 @@ export default function LoginPage() {
     try {
       if (mode === "patient") {
         await loginPatient(patientId.trim(), password);
+        router.push("/dashboard");
       } else {
-        await loginStaff(email.trim(), password);
+        const { role } = await loginStaff(email.trim(), password);
+        router.push(roleHome(role));
       }
-      router.push("/dashboard");
     } catch (e: any) {
       setErr(e?.message || "Unable to sign in.");
     } finally {

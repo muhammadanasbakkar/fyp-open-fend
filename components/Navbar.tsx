@@ -2378,6 +2378,7 @@ export default function Navbar() {
   const showAvailability = !user || role === "therapist";
 
   // role-based extra links (excluding Availability now)
+  const reportsRoles = ["therapist", "supervisor", "hospitalAdmin", "superAdmin", "patient", "receptionist"];
   const roleLinks = [
     ...(role === "receptionist"
       ? [{ href: "/receptionist/book", label: "Reception" }]
@@ -2388,10 +2389,19 @@ export default function Navbar() {
           { href: "/admin/hospitals", label: "Admin: Hospitals" },
         ]
       : []),
+    ...(role === "supervisor"
+      ? [{ href: "/supervisor", label: "Supervisor Dashboard" }]
+      : []),
+    ...(role === "hospitalAdmin"
+      ? [{ href: "/hospital/dashboard", label: "Hospital Dashboard" }]
+      : []),
     ...(role === "therapist"
       ? []
       : role === "superAdmin"
       ? [{ href: "/patient-records/requests", label: "Record Requests" }]
+      : []),
+    ...(role && reportsRoles.includes(role)
+      ? [{ href: "/reports", label: "Reports" }]
       : []),
   ];
 

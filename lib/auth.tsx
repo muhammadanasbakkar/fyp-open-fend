@@ -180,7 +180,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export type UserRole = "patient" | "therapist" | "receptionist" | "admin" | "superAdmin";
+export type UserRole = "patient" | "therapist" | "receptionist" | "admin" | "superAdmin" | "supervisor" | "hospitalAdmin";
 export type User = {
   id?: string | number;
   role: UserRole;
@@ -197,7 +197,7 @@ type Ctx = {
   registerPatient: (gender: string, dateOfBirth: string, password: string) => Promise<{ patientId: string }>;
   loginPatient: (patientId: string, password: string) => Promise<void>;
   // Staff
-  loginStaff: (email: string, password: string) => Promise<void>;
+  loginStaff: (email: string, password: string) => Promise<{ role: string }>;
   logout: () => void;
 };
 
@@ -298,6 +298,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /** listen for external setSession (e.g. hospital login page) */
+  useEffect(() => {
+    const onSet = (e: Event) => {
+      const { token: t, user: u } = (e as CustomEvent).detail || {};
+      if (t && u) setSession(t, u);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("auth:setSession", onSet as EventListener);
+      return () => window.removeEventListener("auth:setSession", onSet as EventListener);
+    }
+  }, []);
+
   function setSession(t: string, u: any) {
     setToken(t);
     setUser(u);
@@ -336,7 +348,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // STAFF login (email + password)
-  async function loginStaff(email: string, password: string) {
+  async function loginStaff(email: string, password: string): Promise<{ role: string }> {
     const res = await fetch(`${API}api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -345,6 +357,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data?.msg || "Invalid credentials");
     setSession(data.token, data.user);
+    return { role: data.user?.role as string };
   }
 
   function handleLogout(redirect = false) {
