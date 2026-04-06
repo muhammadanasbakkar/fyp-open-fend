@@ -2285,7 +2285,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import logoImage from "@/public/logo.svg";
 
-type Role = "patient" | "therapist" | "receptionist" | "superAdmin";
+type Role = "patient" | "therapist" | "receptionist" | "superAdmin" | "supervisor" | "hospitalAdmin";
 
 function cn(...a: (string | false | null | undefined)[]) {
   return a.filter(Boolean).join(" ");
