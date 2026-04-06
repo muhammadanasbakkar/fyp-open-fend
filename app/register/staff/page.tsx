@@ -1230,7 +1230,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
@@ -1384,6 +1384,15 @@ export default function RegisterStaffPage() {
 
   const [supervisorId, setSupervisorId] = useState("");
   const [supervisors, setSupervisors] = useState<any[]>([]);
+
+  // Employment type for therapists
+  const [employmentType, setEmploymentType] = useState<"hospital" | "individual">("hospital");
+  const isIndividual = therapist && employmentType === "individual";
+
+  // Add Hospital Modal
+  const [showAddHospitalModal, setShowAddHospitalModal] = useState(false);
+  const [newHospital, setNewHospital] = useState({ name: "", city: "", address: "", phone: "", type: "clinic" });
+  const [addHospitalLoading, setAddHospitalLoading] = useState(false);
 
 
 
@@ -1580,6 +1589,34 @@ export default function RegisterStaffPage() {
     });
   }
 
+  async function handleAddHospital() {
+    if (!newHospital.name.trim()) {
+      MySwal({ icon: "error", title: "Error", text: "Hospital name is required." });
+      return;
+    }
+    setAddHospitalLoading(true);
+    try {
+      const res = await fetch(`${API}api/public/hospitals/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newHospital),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "Failed to add hospital.");
+      // Add to hospitals list and auto-select it
+      const created: Hospital = { _id: data._id, name: data.name, city: data.city, address: data.address };
+      setHospitals((prev) => [...prev, created]);
+      toggleHospital(created._id);
+      setShowAddHospitalModal(false);
+      setNewHospital({ name: "", city: "", address: "", phone: "", type: "clinic" });
+      MySwal({ icon: "success", title: "Added", text: `"${created.name}" has been added and selected. It will be activated after admin review.` });
+    } catch (e: any) {
+      MySwal({ icon: "error", title: "Error", text: e.message || "Something went wrong." });
+    } finally {
+      setAddHospitalLoading(false);
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
@@ -1659,7 +1696,8 @@ export default function RegisterStaffPage() {
 
       const fd = new FormData();
 
-      fd.set("supervisorId", supervisorId);
+      if (therapist) fd.set("employmentType", employmentType);
+      if (supervisorId) fd.set("supervisorId", supervisorId);
 
 
       fd.set("role", role);
@@ -1786,6 +1824,7 @@ export default function RegisterStaffPage() {
   }
 
   return (
+    <>
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 sm:py-12">
         {/* Breadcrumb */}
@@ -2114,33 +2153,68 @@ export default function RegisterStaffPage() {
               </section>
             )}
 
-            {/* THERAPIST-ONLY DETAILS (YOUR ORIGINAL CODE) */}
-            {therapist && (
-              <></>
-            )}
+            {/* THERAPIST-ONLY DETAILS */}
             {therapist && (
               <>
-                {/* Pricing */}
+                {/* Employment type */}
+                <section className="rounded-2xl border border-gray-100 bg-white p-5 sm:p-6 shadow-sm space-y-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-900">Practice type</h2>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Are you working under a hospital/clinic or practising independently?
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <label className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${employmentType === "hospital" ? "border-[#4b7eff] bg-blue-50" : "border-gray-200 bg-white hover:bg-slate-50"}`}>
+                      <input
+                        type="radio"
+                        name="employmentType"
+                        value="hospital"
+                        checked={employmentType === "hospital"}
+                        onChange={() => setEmploymentType("hospital")}
+                        className="h-4 w-4 text-[#4b7eff]"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Hospital / Clinic</p>
+                        <p className="text-[11px] text-gray-500">You are affiliated with a registered facility</p>
+                      </div>
+                    </label>
+                    <label className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border p-3 transition ${employmentType === "individual" ? "border-[#4b7eff] bg-blue-50" : "border-gray-200 bg-white hover:bg-slate-50"}`}>
+                      <input
+                        type="radio"
+                        name="employmentType"
+                        value="individual"
+                        checked={employmentType === "individual"}
+                        onChange={() => setEmploymentType("individual")}
+                        className="h-4 w-4 text-[#4b7eff]"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Individual / Private</p>
+                        <p className="text-[11px] text-gray-500">You run your own independent practice</p>
+                      </div>
+                    </label>
+                  </div>
+                </section>
 
+                {/* Pricing + Supervisor */}
                 <section className="rounded-2xl border border-gray-100 bg-white p-5 sm:p-6 shadow-sm space-y-4">
 
                   <div className="sm:col-span-2">
                     <h2 className="text-sm font-semibold text-slate-900">
-                      Supervisor <span className="text-red-500">*</span>
+                      Supervisor {isIndividual ? <span className="text-gray-400 font-normal text-xs">(optional for individual practice)</span> : <span className="text-red-500">*</span>}
                     </h2>
-                    <select
+                    <SupervisorAutocomplete
+                      supervisors={supervisors}
                       value={supervisorId}
-                      onChange={(e) => setSupervisorId(e.target.value)}
-                      className="mt-0.5 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm"
-                      required
-                    >
-                      <option value="">Select supervisor</option>
-                      {supervisors.map((s) => (
-                        <option key={s._id} value={s._id}>
-                          {s.name} {s.email ? `(${s.email})` : ""}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSupervisorId}
+                      required={!isIndividual}
+                      placeholder={isIndividual ? "Search supervisor (optional)…" : "Search supervisor…"}
+                    />
+                    {isIndividual && (
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        Individual practitioners can skip supervisor selection. You can link one later.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
@@ -2298,14 +2372,15 @@ export default function RegisterStaffPage() {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-sm font-semibold text-slate-900">
-                        Clinics & schedule
+                        Clinics & schedule {isIndividual && <span className="text-gray-400 font-normal text-xs">(optional)</span>}
                       </h2>
                       <p className="mt-1 text-xs text-gray-500">
-                        Select where you practice in-person and set your working
-                        hours.
+                        {isIndividual
+                          ? "Optionally link clinics where you see patients in-person."
+                          : "Select where you practice in-person and set your working hours."}
                       </p>
                     </div>
-                    <div className="w-full max-w-xs">
+                    <div className="flex items-center gap-2 w-full max-w-xs">
                       <Input
                         placeholder="Search clinics..."
                         value={hospSearch}
@@ -2503,6 +2578,20 @@ export default function RegisterStaffPage() {
                       )}
                     </p>
                   )}
+
+                  {/* Add hospital not in list */}
+                  <div className="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-slate-50 px-4 py-3">
+                    <span className="text-xs text-gray-500 flex-1">
+                      Can&apos;t find your clinic or hospital in the list?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddHospitalModal(true)}
+                      className="rounded-lg bg-[#4b7eff] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#3b6eef] transition-colors"
+                    >
+                      + Add Hospital
+                    </button>
+                  </div>
                 </section>
               </>
             )}
@@ -2624,6 +2713,289 @@ export default function RegisterStaffPage() {
           </aside>
         </form>
       </div>
+    </div>
+
+    {/* Add Hospital Modal */}
+    {showAddHospitalModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-100">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Add a new hospital / clinic</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">It will be submitted for admin review and activated once approved.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddHospitalModal(false)}
+              className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="px-5 py-4 space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">
+                Name <span className="text-red-500">*</span>
+              </label>
+              <HospitalNameAutocomplete
+                hospitals={hospitals}
+                value={newHospital.name}
+                onChange={(name) => setNewHospital((h) => ({ ...h, name }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">City</label>
+                <Input
+                  placeholder="e.g. Lahore"
+                  value={newHospital.city}
+                  onChange={(e) => setNewHospital((h) => ({ ...h, city: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Phone</label>
+                <Input
+                  placeholder="e.g. 042-12345678"
+                  value={newHospital.phone}
+                  onChange={(e) => setNewHospital((h) => ({ ...h, phone: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Address</label>
+              <Input
+                placeholder="Street address"
+                value={newHospital.address}
+                onChange={(e) => setNewHospital((h) => ({ ...h, address: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">Type</label>
+              <select
+                value={newHospital.type}
+                onChange={(e) => setNewHospital((h) => ({ ...h, type: e.target.value }))}
+                className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#4b7eff] focus:outline-none focus:ring-1 focus:ring-[#4b7eff]"
+              >
+                <option value="clinic">Clinic</option>
+                <option value="hospital">Hospital</option>
+                <option value="wellness-center">Wellness Center</option>
+                <option value="rehab-center">Rehab Center</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-5 py-4">
+            <button
+              type="button"
+              onClick={() => setShowAddHospitalModal(false)}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAddHospital}
+              disabled={addHospitalLoading || !newHospital.name.trim()}
+              className="rounded-lg bg-[#4b7eff] px-4 py-2 text-xs font-medium text-white hover:bg-[#3b6eef] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {addHospitalLoading ? "Submitting…" : "Submit Hospital"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
+  );
+}
+
+/* ─── Supervisor autocomplete ────────────────────────────────────── */
+function SupervisorAutocomplete({
+  supervisors,
+  value,
+  onChange,
+  required,
+  placeholder,
+}: {
+  supervisors: { _id: string; name: string; email?: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Derive the display name from the selected id
+  const selectedName = useMemo(() => {
+    const found = supervisors.find((s) => s._id === value);
+    return found ? `${found.name}${found.email ? ` (${found.email})` : ""}` : "";
+  }, [supervisors, value]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return supervisors;
+    return supervisors.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.email || "").toLowerCase().includes(q)
+    );
+  }, [supervisors, query]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        // If user typed but didn't select, restore to selected name or clear
+        if (!value) setQuery("");
+        else setQuery(selectedName);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [value, selectedName]);
+
+  function handleSelect(s: { _id: string; name: string; email?: string }) {
+    onChange(s._id);
+    setQuery(`${s.name}${s.email ? ` (${s.email})` : ""}`);
+    setOpen(false);
+  }
+
+  function handleClear() {
+    onChange("");
+    setQuery("");
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm shadow-sm focus:border-[#4b7eff] focus:outline-none focus:ring-1 focus:ring-[#4b7eff]"
+          placeholder={placeholder || "Search supervisor…"}
+          value={query}
+          required={required && !value}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            if (!e.target.value) onChange("");
+          }}
+          onFocus={() => setOpen(true)}
+          autoComplete="off"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-2 text-gray-400 hover:text-gray-600"
+            tabIndex={-1}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <ul className="absolute z-30 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2 text-gray-500">No supervisors found.</li>
+          ) : (
+            filtered.map((s) => (
+              <li
+                key={s._id}
+                onMouseDown={() => handleSelect(s)}
+                className={`cursor-pointer px-3 py-2 hover:bg-blue-50 ${value === s._id ? "bg-blue-50 font-medium text-[#4b7eff]" : "text-slate-800"}`}
+              >
+                <span>{s.name}</span>
+                {s.email && <span className="ml-1 text-[11px] text-gray-400">({s.email})</span>}
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ─── Hospital name autocomplete (for the "Add Hospital" modal) ──── */
+function HospitalNameAutocomplete({
+  hospitals,
+  value,
+  onChange,
+}: {
+  hospitals: { _id: string; name: string; city?: string }[];
+  value: string;
+  onChange: (name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = value.trim().toLowerCase();
+    if (!q) return [];
+    return hospitals.filter((h) =>
+      h.name.toLowerCase().includes(q) || (h.city || "").toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [hospitals, value]);
+
+  const hasExactMatch = useMemo(
+    () => hospitals.some((h) => h.name.toLowerCase() === value.trim().toLowerCase()),
+    [hospitals, value]
+  );
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#4b7eff] focus:outline-none focus:ring-1 focus:ring-[#4b7eff]"
+        placeholder="e.g. City Mental Health Clinic"
+        value={value}
+        required
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        autoComplete="off"
+      />
+
+      {/* Existing match warning */}
+      {hasExactMatch && value && (
+        <p className="mt-1 text-[11px] text-amber-600">
+          A hospital with this name already exists in the system. Please select it from the clinic list instead.
+        </p>
+      )}
+
+      {open && filtered.length > 0 && !hasExactMatch && (
+        <ul className="absolute z-30 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
+          {filtered.map((h) => (
+            <li
+              key={h._id}
+              onMouseDown={() => { onChange(h.name); setOpen(false); }}
+              className="cursor-pointer px-3 py-2 hover:bg-blue-50 text-slate-800"
+            >
+              <span className="font-medium">{h.name}</span>
+              {h.city && <span className="ml-1 text-[11px] text-gray-400">— {h.city}</span>}
+              <span className="ml-2 text-[10px] text-amber-600">(already registered)</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
