@@ -179,11 +179,11 @@ const Icons = {
 // ─── role config ─────────────────────────────────────────────────────────────
 
 const ROLE_META: Record<string, { label: string; color: string; bg: string }> = {
-  patient:      { label: "Patient",      color: "#4b7eff", bg: "from-[#4b7eff] to-[#6aa7ff]" },
-  therapist:    { label: "Therapist",    color: "#7c3aed", bg: "from-[#7c3aed] to-[#9d6cff]" },
+  patient: { label: "Patient", color: "#4b7eff", bg: "from-[#4b7eff] to-[#6aa7ff]" },
+  therapist: { label: "Therapist", color: "#7c3aed", bg: "from-[#7c3aed] to-[#9d6cff]" },
   receptionist: { label: "Receptionist", color: "#0f766e", bg: "from-[#0f766e] to-[#0d9488]" },
-  superAdmin:   { label: "Super Admin",  color: "#dc2626", bg: "from-[#dc2626] to-[#f97316]" },
-  admin:        { label: "Admin",        color: "#d97706", bg: "from-[#d97706] to-[#f59e0b]" },
+  superAdmin: { label: "Super Admin", color: "#dc2626", bg: "from-[#dc2626] to-[#f97316]" },
+  admin: { label: "Admin", color: "#d97706", bg: "from-[#d97706] to-[#f59e0b]" },
 };
 
 // ─── appointment fetcher hook ─────────────────────────────────────────────────
@@ -263,6 +263,8 @@ function HeroBanner({
 function PatientDashboard({ user, token }: { user: any; token: string | null }) {
   const apptStats = useAppointmentStats(token);
   const meta = ROLE_META.patient;
+
+
   return (
     <div className="space-y-8">
       <HeroBanner user={user} roleMeta={meta} />
@@ -270,7 +272,7 @@ function PatientDashboard({ user, token }: { user: any; token: string | null }) 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {apptStats === null ? (
-          [1,2,3,4].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3, 4].map(i => <StatSkeleton key={i} />)
         ) : (
           <>
             <StatCard label="Upcoming" value={apptStats.upcoming} sub="sessions booked" icon={Icons.calendar} color={meta.color} />
@@ -306,20 +308,24 @@ function PatientDashboard({ user, token }: { user: any; token: string | null }) 
             icon={Icons.search}
             accent="#7c3aed"
           />
-          <ActionCard
-            title="Patient records"
-            desc="Access your session notes and treatment history."
-            href="/patient-records"
-            icon={Icons.notes}
-            accent="#d97706"
-          />
-          <ActionCard
-            title="Resources"
-            desc="Guides, FAQs, and help articles for using TheraKonnect."
-            href="/resources"
-            icon={Icons.list}
-            accent="#64748b"
-          />
+          {meta.label === "Therapist" &&
+            <>
+              <ActionCard
+                title="Patient records"
+                desc="Access your session notes and treatment history."
+                href="/patient-records"
+                icon={Icons.notes}
+                accent="#d97706"
+              />
+              <ActionCard
+                title="Resources"
+                desc="Guides, FAQs, and help articles for using TheraKonnect."
+                href="/resources"
+                icon={Icons.list}
+                accent="#64748b"
+              />
+            </>
+          }
           <ActionCard
             title="Account settings"
             desc="Update your contact info, preferences, and profile."
@@ -331,7 +337,7 @@ function PatientDashboard({ user, token }: { user: any; token: string | null }) 
       </div>
 
       {/* Info banner */}
-      <div className="rounded-2xl border border-[#4b7eff]/20 bg-[#4b7eff]/5 p-5">
+      {/* <div className="rounded-2xl border border-[#4b7eff]/20 bg-[#4b7eff]/5 p-5">
         <div className="flex items-start gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4b7eff]/15 text-[#4b7eff]">
             {Icons.star}
@@ -350,7 +356,7 @@ function PatientDashboard({ user, token }: { user: any; token: string | null }) 
             </Link>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -390,7 +396,7 @@ function TherapistDashboard({
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {apptStats === null ? (
-          [1,2,3,4].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3, 4].map(i => <StatSkeleton key={i} />)
         ) : (
           <>
             <StatCard label="Upcoming" value={apptStats.upcoming} sub="sessions scheduled" icon={Icons.calendar} color={meta.color} />
@@ -478,7 +484,7 @@ function ReceptionistDashboard({ user, token }: { user: any; token: string | nul
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {apptStats === null ? (
-          [1,2,3,4].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3, 4].map(i => <StatSkeleton key={i} />)
         ) : (
           <>
             <StatCard label="Upcoming" value={apptStats.upcoming} sub="appointments" icon={Icons.calendar} color={meta.color} />
@@ -602,7 +608,7 @@ function SuperAdminDashboard({ user, token }: { user: any; token: string | null 
           color="#dc2626"
         />
         {apptStats === null ? (
-          [1,2,3].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3].map(i => <StatSkeleton key={i} />)
         ) : (
           <>
             <StatCard label="Upcoming appts" value={apptStats.upcoming} sub="across all clinics" icon={Icons.calendar} color="#4b7eff" />
@@ -697,7 +703,7 @@ function AdminDashboard({ user, token }: { user: any; token: string | null }) {
       <HeroBanner user={user} roleMeta={meta} />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {apptStats === null ? (
-          [1,2,3].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3].map(i => <StatSkeleton key={i} />)
         ) : (
           <>
             <StatCard label="Upcoming" value={apptStats.upcoming} sub="appointments" icon={Icons.calendar} color={meta.color} />
@@ -723,6 +729,8 @@ function AdminDashboard({ user, token }: { user: any; token: string | null }) {
 
 export default function Dashboard() {
   const { user, token } = useAuth() as { user: any; token?: string };
+  console.log("User on dashboard:", user);
+  const role = user?.role;
   const [showSpecialtiesModal, setShowSpecialtiesModal] = useState(false);
   const modalDecisionMadeRef = useRef(false);
   const router = useRouter();
@@ -768,15 +776,15 @@ export default function Dashboard() {
     fetch(`${(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "")}/api/auth/therapist/specialties-modal-shown`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    }).catch(() => {});
+    }).catch(() => { });
   }, [user, token]);
 
   const content = useMemo(() => {
     const role = user?.role;
-    if (role === "patient")       return <PatientDashboard user={user} token={token ?? null} />;
-    if (role === "therapist")     return <TherapistDashboard user={user} token={token ?? null} onOpenSpecialties={() => setShowSpecialtiesModal(true)} />;
-    if (role === "receptionist")  return <ReceptionistDashboard user={user} token={token ?? null} />;
-    if (role === "superAdmin")    return <SuperAdminDashboard user={user} token={token ?? null} />;
+    if (role === "patient") return <PatientDashboard user={user} token={token ?? null} />;
+    if (role === "therapist") return <TherapistDashboard user={user} token={token ?? null} onOpenSpecialties={() => setShowSpecialtiesModal(true)} />;
+    if (role === "receptionist") return <ReceptionistDashboard user={user} token={token ?? null} />;
+    if (role === "superAdmin") return <SuperAdminDashboard user={user} token={token ?? null} />;
     return <AdminDashboard user={user} token={token ?? null} />;
   }, [user, token]);
 

@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/lib/auth";
 
 type Resource = {
   title: string;
@@ -96,6 +97,7 @@ const faqs = [
 ];
 
 export default function ResourcesPage() {
+  const { user } = useAuth();
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pb-20 pt-10 space-y-12">
@@ -181,7 +183,7 @@ export default function ResourcesPage() {
           {/* Right column */}
           <aside className="space-y-6">
             {/* External tools */}
-            <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-[#1a1f36] p-6 text-white shadow-sm">
+            {/* <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-[#1a1f36] p-6 text-white shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-[#4b7eff]">External</p>
@@ -197,7 +199,7 @@ export default function ResourcesPage() {
                   <ResourceCard key={r.title} {...r} variant="dark" />
                 ))}
               </div>
-            </div>
+            </div> */}
 
             {/* Help card */}
             <div className="rounded-2xl border border-[#4b7eff]/20 bg-[#4b7eff]/5 p-5 shadow-sm">
@@ -220,30 +222,32 @@ export default function ResourcesPage() {
             </div>
 
             {/* Getting started card */}
-            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">New to TheraKonnect?</h3>
-              <div className="space-y-2.5">
-                {[
-                  { step: "1", text: "Create your account" },
-                  { step: "2", text: "Complete your profile" },
-                  { step: "3", text: "Browse available therapists" },
-                  { step: "4", text: "Book your first session" },
-                ].map((s) => (
-                  <div key={s.step} className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4b7eff]/10 text-xs font-bold text-[#4b7eff]">
-                      {s.step}
-                    </span>
-                    <span className="text-xs text-gray-600">{s.text}</span>
-                  </div>
-                ))}
+            {!user && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">New to TheraKonnect?</h3>
+                <div className="space-y-2.5">
+                  {[
+                    { step: "1", text: "Create your account" },
+                    { step: "2", text: "Complete your profile" },
+                    { step: "3", text: "Browse available therapists" },
+                    { step: "4", text: "Book your first session" },
+                  ].map((s) => (
+                    <div key={s.step} className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4b7eff]/10 text-xs font-bold text-[#4b7eff]">
+                        {s.step}
+                      </span>
+                      <span className="text-xs text-gray-600">{s.text}</span>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href="/register"
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-105 transition-all"
+                >
+                  Get started
+                </Link>
               </div>
-              <Link
-                href="/register"
-                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-105 transition-all"
-              >
-                Get started
-              </Link>
-            </div>
+            )}
           </aside>
         </div>
       </div>

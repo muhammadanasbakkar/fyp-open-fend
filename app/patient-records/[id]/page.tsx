@@ -542,21 +542,21 @@ function PatientRecordInner() {
             </div>
           )}
 
-          <p className="mb-3 mt-1 text-xs text-gray-600">
+          {/* <p className="mb-3 mt-1 text-xs text-gray-600">
             Dictate freely — names and identifiers will be anonymized automatically, then structured into SOAP.
-          </p>
+          </p> */}
 
-          <label className="mb-1 block text-sm text-gray-700">Scratch / Dictation text</label>
+          {/* <label className="mb-1 block text-sm text-gray-700">Scratch / Dictation text</label>
           <textarea
             className="w-full rounded-md border px-3 py-2 text-sm"
             rows={5}
             value={noteBody}
             onChange={(e) => setNoteBody(e.target.value)}
             placeholder='Example: "Subjective: feels better. Objective: calm. Assessment: GAD improving. Plan: CBT homework."'
-          />
+          /> */}
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <label>Dictate language</label>
               <select
                 className="rounded border px-2 py-1 text-xs"
@@ -579,10 +579,10 @@ function PatientRecordInner() {
               ))}
 
               {sttError && <span className="text-red-600">Mic error: {sttError}</span>}
-            </div>
+            </div> */}
 
             <div className="flex items-center gap-3">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setNoteBody(cleanTranscript(noteBody))}
                 className="text-[var(--brand,#4b7eff)] hover:underline"
@@ -606,9 +606,9 @@ function PatientRecordInner() {
                 className="text-violet-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {anonymizing ? "Anonymizing…" : "🔒 Anonymize names"}
-              </button>
+              </button> */}
 
-              <button
+              {/* <button
                 type="button"
                 onClick={() => {
                   const parsed = parseSoapFromText(noteBody);
@@ -628,7 +628,7 @@ function PatientRecordInner() {
                 className="text-[var(--brand,#4b7eff)] hover:underline"
               >
                 Apply SOAP structuring now
-              </button>
+              </button> */}
             </div>
           </div>
 

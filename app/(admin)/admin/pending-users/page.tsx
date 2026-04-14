@@ -651,7 +651,6 @@ export default function PendingUsersPage() {
                 u.role === "therapist"
                   ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
                   : "bg-indigo-50 text-indigo-700 ring-indigo-100";
-              console.log("profileSrc:", profileSrc);
               return (
                 <li
                   key={u._id}
