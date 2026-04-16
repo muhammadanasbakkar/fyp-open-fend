@@ -1235,6 +1235,7 @@ import Link from "next/link";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
 import MySwal from "@/components/MySwal";
+import { compressImage, compressImages } from "@/lib/compressImage";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -2127,7 +2128,7 @@ export default function RegisterStaffPage() {
                     type="file"
                     multiple
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const files = e.target.files;
                       if (!files || files.length === 0) return;
 
@@ -2141,7 +2142,9 @@ export default function RegisterStaffPage() {
                         validFiles.push(file);
                       }
 
-                      setForm((f) => ({ ...f, supervisorCertFiles: validFiles }));
+                      // Compress: max 1600px, 0.85 quality — keeps docs readable
+                      const compressed = await compressImages(validFiles, { maxSize: 1600, quality: 0.85 });
+                      setForm((f) => ({ ...f, supervisorCertFiles: compressed }));
                     }}
                     required
                     className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white shadow-sm"
@@ -2189,7 +2192,7 @@ export default function RegisterStaffPage() {
                         className="h-4 w-4 text-[#4b7eff]"
                       />
                       <div>
-                        <p className="text-sm font-medium text-slate-900">Individual / Private</p>
+                        <p className="text-sm font-medium text-slate-900">Individual / Private / Online</p>
                         <p className="text-[11px] text-gray-500">You run your own independent practice</p>
                       </div>
                     </label>
@@ -2336,7 +2339,7 @@ export default function RegisterStaffPage() {
                       type="file"
                       multiple
                       accept="image/*"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const files = e.target.files;
                         if (!files || files.length === 0) return;
 
@@ -2352,9 +2355,11 @@ export default function RegisterStaffPage() {
                           validFiles.push(file);
                         }
 
+                        // Compress: max 1600px, 0.85 quality — keeps docs readable
+                        const compressed = await compressImages(validFiles, { maxSize: 1600, quality: 0.85 });
                         setForm((f) => ({
                           ...f,
-                          certFiles: validFiles,
+                          certFiles: compressed,
                         }));
                       }}
                       required
@@ -2660,17 +2665,18 @@ export default function RegisterStaffPage() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    profileFile: e.target.files?.[0],
-                  }))
-                }
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  // Compress: max 800×800px, 0.88 quality — ideal for profile photos
+                  const compressed = await compressImage(file, { maxSize: 800, quality: 0.88 });
+                  setForm((f) => ({ ...f, profileFile: compressed }));
+                }}
                 required
                 className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
               />
               <p className="mt-1 text-[11px] text-gray-500">
-                JPG / PNG / WebP up to ~3–5MB. Square or 1:1 works best.
+                JPG / PNG / WebP — auto-compressed on upload. Square or 1:1 works best.
               </p>
             </div>
 

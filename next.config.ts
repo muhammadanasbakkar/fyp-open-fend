@@ -27,7 +27,7 @@ const nextConfig = {
     },
   },
   images: {
-    unoptimized: true,
+    unoptimized: false,
     remotePatterns: [
       { protocol: "https", hostname: "d34rw2rmmwyzdi.cloudfront.net" },
       { protocol: "https", hostname: "d3gj7dgsk3dlhn.cloudfront.net" },

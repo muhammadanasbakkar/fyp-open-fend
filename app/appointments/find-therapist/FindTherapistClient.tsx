@@ -1,20 +1,24 @@
 // app/appointments/find-therapist/FindTherapistClient.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { publicApi } from "@/lib/publicApi";
 import TherapistCard, { TherapistCardProps } from "@/components/TherapistCard";
 import FiltersBar from "@/components/FiltersBar";
 
-type ListResponse = {
+export type ListResponse = {
   items: TherapistCardProps[];
   total: number;
   page: number;
   limit: number;
 };
 
-export default function FindTherapistClient() {
+export default function FindTherapistClient({
+  initialData,
+}: {
+  initialData?: ListResponse | null;
+}) {
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -22,13 +26,19 @@ export default function FindTherapistClient() {
   const page = Number(sp.get("page") || "1");
   const limit = Number(sp.get("limit") || "12");
 
-  const [data, setData] = useState<ListResponse | null>(null);
+  const [data, setData] = useState<ListResponse | null>(initialData ?? null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   const spString = useMemo(() => sp.toString(), [sp]);
+  // Skip the first client-side fetch when the server already provided data
+  const skipFirstFetch = useRef(!!initialData);
 
   useEffect(() => {
+    if (skipFirstFetch.current) {
+      skipFirstFetch.current = false;
+      return;
+    }
     (async () => {
       setLoading(true);
       setErr("");
