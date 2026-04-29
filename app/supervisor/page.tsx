@@ -37,6 +37,39 @@ type Session = {
   plan: string;
 };
 
+type NoteComment = {
+  _id?: string;
+  author?: string;
+  authorName?: string;
+  authorRole?: "therapist" | "supervisor";
+  text: string;
+  createdAt?: string;
+};
+
+type SharedNote = {
+  _id?: string;
+  subjective?: string;
+  objective?: string;
+  assessment?: string;
+  plan?: string;
+  diagnosis?: string;
+  treatment?: string;
+  activity?: string;
+  additionalNotes?: string;
+  body?: string;
+  createdAt?: string;
+  comments?: NoteComment[];
+};
+
+type SharedRecordItem = {
+  shareId: string;
+  sharedAt: string;
+  reason: string;
+  patient: { _id: string; name: string; patientId: string | null; email: string | null } | null;
+  therapist: { _id: string; name: string; email: string | null; profilePicture: string | null } | null;
+  notes: SharedNote[];
+};
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 const CDN = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
@@ -45,6 +78,138 @@ function fmt(d: string | null) {
   return new Date(d).toLocaleDateString("en-PK", {
     day: "2-digit", month: "short", year: "numeric",
   });
+}
+
+function fmtDateTime(d?: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("en-PK", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+// ── shared-note card with private therapist↔supervisor comment thread ────────
+function SharedNoteCard({
+  note,
+  patientId,
+  therapistId,
+  token,
+  onCommentAdded,
+}: {
+  note: SharedNote;
+  patientId: string;
+  therapistId: string;
+  token: string | null;
+  onCommentAdded: (noteId: string, comment: NoteComment) => void;
+}) {
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState("");
+
+  const subj = note.subjective || "";
+  const obj  = note.objective  || "";
+  const ass  = note.assessment || note.diagnosis || "";
+  const plan = note.plan       || note.treatment || note.activity || "";
+  const extra = note.additionalNotes || note.body || "";
+  const comments = note.comments || [];
+
+  async function submitComment() {
+    const trimmed = text.trim();
+    if (!trimmed || !note._id) return;
+    setErr("");
+    setPosting(true);
+    try {
+      const res: any = await api(
+        `api/record-requests/notes/${patientId}/${therapistId}/${note._id}/comment`,
+        {
+          method: "POST",
+          headers: {
+            ...authHeader(token || undefined),
+            "Content-Type": "application/json",
+          } as HeadersInit,
+          body: JSON.stringify({ text: trimmed }),
+        }
+      );
+      onCommentAdded(note._id, res?.comment || { text: trimmed, authorRole: "supervisor", createdAt: new Date().toISOString() });
+      setText("");
+    } catch (e: any) {
+      setErr(e?.message || "Could not post comment.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs">
+      <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+        {note.createdAt ? fmt(note.createdAt) : "—"}
+      </p>
+      {[
+        { label: "S — Subjective", value: subj },
+        { label: "O — Objective",  value: obj  },
+        { label: "A — Assessment", value: ass  },
+        { label: "P — Plan",       value: plan },
+        { label: "Notes",          value: extra },
+      ].map(({ label, value }) =>
+        value ? (
+          <div key={label} className="mb-1.5 last:mb-0">
+            <p className="font-semibold text-gray-500">{label}</p>
+            <p className="text-gray-800 whitespace-pre-wrap">{value}</p>
+          </div>
+        ) : null
+      )}
+
+      {/* Private comment thread */}
+      <div className="mt-3 border-t border-gray-200 pt-3">
+        <p className="mb-2 text-[10px] uppercase tracking-wider text-gray-400">
+          Private comments · therapist & you
+        </p>
+        {comments.length > 0 && (
+          <ul className="mb-2 space-y-1.5">
+            {comments.map((c, i) => (
+              <li
+                key={c._id || i}
+                className={`rounded-lg px-2.5 py-1.5 ${
+                  c.authorRole === "supervisor"
+                    ? "bg-[#4b7eff]/10 border border-[#4b7eff]/20"
+                    : "bg-white border border-gray-200"
+                }`}
+              >
+                <p className="text-[10px] text-gray-500">
+                  <span className="font-semibold text-gray-700">
+                    {c.authorName || (c.authorRole === "supervisor" ? "Supervisor" : "Therapist")}
+                  </span>
+                  <span className="ml-1 text-gray-400">· {fmtDateTime(c.createdAt)}</span>
+                </p>
+                <p className="mt-0.5 text-gray-800 whitespace-pre-wrap">{c.text}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex items-start gap-2">
+          <textarea
+            rows={2}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Leave a private comment for the therapist…"
+            disabled={posting}
+            maxLength={1000}
+            className="flex-1 resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:border-[#4b7eff] focus:outline-none disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={submitComment}
+            disabled={!text.trim() || posting}
+            className="shrink-0 rounded-lg bg-[#4b7eff] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#3a6bef] disabled:opacity-50 transition-colors"
+          >
+            {posting ? "…" : "Post"}
+          </button>
+        </div>
+        {err && <p className="mt-1 text-[11px] text-red-600">{err}</p>}
+      </div>
+    </div>
+  );
 }
 
 function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
@@ -80,6 +245,7 @@ function SessionsDrawer({
       headers: authHeader(token || undefined) as HeadersInit,
     })
       .then((d: any) => {
+        console.log(`aaaaa`, d);
         setSessions(d.sessions || []);
         setPages(d.pagination?.pages || 1);
         setTotal(d.pagination?.total || 0);
@@ -88,6 +254,9 @@ function SessionsDrawer({
       .finally(() => setLoading(false));
   }, [therapist._id, page, token]);
 
+
+
+  console.log(sessions,"111");
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* backdrop */}
@@ -216,11 +385,16 @@ function SupervisorDashboardInner() {
   const router = useRouter();
 
   const [stats, setStats]         = useState<Stats | null>(null);
+  console.log(stats,"stats");
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [loading, setLoading]     = useState(true);
   const [err, setErr]             = useState("");
   const [search, setSearch]       = useState("");
   const [selected, setSelected]   = useState<Therapist | null>(null);
+
+  const [shared, setShared]       = useState<SharedRecordItem[]>([]);
+  const [sharedLoading, setSharedLoading] = useState(true);
+  const [openShare, setOpenShare] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.role !== "supervisor") {
@@ -240,6 +414,29 @@ function SupervisorDashboardInner() {
       })
       .catch((e: any) => setErr(e.message || "Failed to load dashboard."))
       .finally(() => setLoading(false));
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    setSharedLoading(true);
+    api("api/supervisor/shared-records", {
+      headers: authHeader(token) as HeadersInit,
+    })
+      .then((d: any) => {
+        console.log("[supervisor/shared-records] response:", d);
+        const items =
+          (Array.isArray(d?.items) && d.items) ||
+          (Array.isArray(d) && d) ||
+          (Array.isArray(d?.shared) && d.shared) ||
+          [];
+        setShared(items);
+      })
+      .catch((e: any) => {
+        console.error("[supervisor/shared-records] fetch failed:", e);
+        setErr(e?.message || "Failed to load shared records.");
+        setShared([]);
+      })
+      .finally(() => setSharedLoading(false));
   }, [token]);
 
   const filtered = therapists.filter((t) => {
@@ -296,6 +493,106 @@ function SupervisorDashboardInner() {
             />
           </div>
         ) : null}
+
+        {/* Patients shared with you */}
+        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+            <div>
+              <p className="font-semibold text-gray-900">Patients shared with you</p>
+              <p className="text-xs text-gray-500">Therapists who have shared a patient's records with you for review.</p>
+            </div>
+            {!sharedLoading && (
+              <span className="rounded-full bg-[#4b7eff]/10 px-2.5 py-0.5 text-xs font-semibold text-[#4b7eff]">
+                {shared.length}
+              </span>
+            )}
+          </div>
+
+          {sharedLoading ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-16 rounded-xl bg-gray-100 animate-pulse" />
+              ))}
+            </div>
+          ) : shared.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-gray-500">
+              No therapist has shared a patient with you yet.
+            </p>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {shared.map((s) => {
+                console.log(`shared item:`, s);
+                const open = openShare === s.shareId;
+                const noteCount = (s.notes || []).length;
+                return (
+                  <div key={s.shareId} className="px-5 py-4">
+                    <button
+                      type="button"
+                      onClick={() => setOpenShare(open ? null : s.shareId)}
+                      className="flex w-full items-center justify-between gap-4 text-left"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {s.patient?.name || "Unknown patient"}
+                          {s.patient?.patientId && (
+                            <span className="ml-2 text-xs font-normal text-gray-400">{s.patient.patientId}</span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-500 truncate">
+                          Shared by <span className="font-medium text-gray-700">{s.therapist?.name || "—"}</span>
+                          {" · "}{fmt(s.sharedAt)}
+                          {" · "}{noteCount} note{noteCount === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <svg
+                        className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {open && (
+                      <div className="mt-3 space-y-2">
+                        {noteCount === 0 ? (
+                          <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+                            No notes recorded by this therapist for this patient yet.
+                          </p>
+                        ) : (
+                          s.notes.map((n, i) => (
+                            <SharedNoteCard
+                              key={n._id || i}
+                              note={n}
+                              patientId={s.patient?._id || ""}
+                              therapistId={s.therapist?._id || ""}
+                              token={token}
+                              onCommentAdded={(noteId, comment) => {
+                                setShared((prev) =>
+                                  prev.map((item) =>
+                                    item.shareId !== s.shareId
+                                      ? item
+                                      : {
+                                          ...item,
+                                          notes: item.notes.map((nn) =>
+                                            nn._id === noteId
+                                              ? { ...nn, comments: [...(nn.comments || []), comment] }
+                                              : nn
+                                          ),
+                                        }
+                                  )
+                                );
+                              }}
+                            />
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Therapist list */}
         <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">

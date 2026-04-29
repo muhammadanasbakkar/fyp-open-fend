@@ -1386,6 +1386,10 @@ export default function RegisterStaffPage() {
   const [supervisorId, setSupervisorId] = useState("");
   const [supervisors, setSupervisors] = useState<any[]>([]);
 
+  // Supervisor + Hospital Admin (same person)
+  const [alsoHospitalAdmin, setAlsoHospitalAdmin] = useState(false);
+  const [managedHospitalId, setManagedHospitalId] = useState("");
+
   // Employment type for therapists
   const [employmentType, setEmploymentType] = useState<"hospital" | "individual">("hospital");
   const isIndividual = therapist && employmentType === "individual";
@@ -1443,17 +1447,24 @@ export default function RegisterStaffPage() {
     }
   }, [selectedHospitals, primaryHospital]);
 
-  // Clear therapist-only state when switching away from therapist
+  // Clear therapist-only state when switching away from therapist.
+  // Supervisors share `selectedHospitals` (multi-select) but don't use schedules/fees/primary.
   useEffect(() => {
     if (!therapist) {
-      setSelectedHospitals([]);
       setPrimaryHospital(null);
       setFeesOnline("");
       setFeesInPerson("");
       setHospitalFees({});
       setHospitalSchedule({});
     }
-  }, [therapist]);
+    if (!therapist && !supervisor) {
+      setSelectedHospitals([]);
+    }
+    if (!supervisor) {
+      setAlsoHospitalAdmin(false);
+      setManagedHospitalId("");
+    }
+  }, [therapist, supervisor]);
 
   // Clear receptionist-only hospital selection when switching away
   useEffect(() => {
@@ -1773,7 +1784,7 @@ export default function RegisterStaffPage() {
       if (supervisor) {
         // If your backend expects dot-notation instead, change these keys to:
         // supervisorInfo.specializations etc.
-        
+
         fd.set("supervisorInfo[specializations]", form.supervisorSpecializations);
         fd.set(
           "supervisorInfo[yearsExperience]",
@@ -1798,8 +1809,18 @@ export default function RegisterStaffPage() {
           fd.append("certificationFiles", f)
         );
 
-        // Don’t attach hospitals for supervisors (optional safety)
+        // Supervisors are linked to one or more hospitals; no "primary".
+        selectedHospitals.forEach((id) => fd.append("affiliatedHospitals", id));
         fd.delete("primaryHospital");
+
+        // Same person also acts as a hospital admin?
+        if (alsoHospitalAdmin) {
+          if (!managedHospitalId) {
+            throw new Error("Pick a hospital to manage as admin, or uncheck the option.");
+          }
+          fd.set("alsoHospitalAdmin", "true");
+          fd.set("managedHospital", managedHospitalId);
+        }
       }
 
       const res = await fetch(`${API}api/auth/register`, {
@@ -2118,6 +2139,122 @@ export default function RegisterStaffPage() {
                       }))
                     }
                   />
+                </div>
+
+                {/* Onboarded hospitals — multi-select */}
+                <div className="mt-5">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Onboarded hospitals / clinics
+                  </label>
+                  <p className="text-[11px] text-gray-500 mb-2">
+                    Select one or more facilities you supervise at. Leave empty if none.
+                  </p>
+
+                  {hospLoading ? (
+                    <p className="text-xs text-gray-500">Loading hospitals…</p>
+                  ) : hospErr ? (
+                    <p className="text-xs text-red-600">{hospErr}</p>
+                  ) : !hospitals.length ? (
+                    <p className="text-xs text-gray-500 italic">
+                      No hospitals are available yet.
+                    </p>
+                  ) : (
+                    <>
+                      <Input
+                        placeholder="Search hospitals…"
+                        value={hospSearch}
+                        onChange={(e) => setHospSearch(e.target.value)}
+                      />
+                      <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-gray-200 divide-y">
+                        {filteredHospitals.length === 0 ? (
+                          <p className="px-3 py-3 text-xs text-gray-500">No matches.</p>
+                        ) : (
+                          filteredHospitals.map((h) => {
+                            const checked = selectedHospitals.includes(h._id);
+                            return (
+                              <label
+                                key={h._id}
+                                className="flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-slate-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="mt-0.5 h-4 w-4"
+                                  checked={checked}
+                                  onChange={() => toggleHospital(h._id)}
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-slate-900 truncate">
+                                    {h.name}
+                                  </p>
+                                  {(h.city || h.address) && (
+                                    <p className="text-[11px] text-gray-500 truncate">
+                                      {[h.city, h.address].filter(Boolean).join(" · ")}
+                                    </p>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                      {selectedHospitals.length > 0 && (
+                        <p className="mt-2 text-[11px] text-gray-500">
+                          {selectedHospitals.length} selected
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Same person also serves as Hospital Admin */}
+                <div className="mt-5 rounded-xl border border-dashed border-[#4b7eff]/40 bg-[#4b7eff]/5 p-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={alsoHospitalAdmin}
+                      onChange={(e) => {
+                        setAlsoHospitalAdmin(e.target.checked);
+                        if (!e.target.checked) setManagedHospitalId("");
+                      }}
+                      className="mt-0.5 h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-900">
+                        Also act as Hospital Admin
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        Tick this if the same person manages a hospital as its admin. They will be granted hospital-admin permissions in addition to supervisor.
+                      </p>
+                    </div>
+                  </label>
+
+                  {alsoHospitalAdmin && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Hospital to manage <span className="text-red-600">*</span>
+                      </label>
+                      {hospLoading ? (
+                        <p className="text-xs text-gray-500">Loading hospitals…</p>
+                      ) : !hospitals.length ? (
+                        <p className="text-xs text-gray-500 italic">No hospitals available.</p>
+                      ) : (
+                        <select
+                          value={managedHospitalId}
+                          onChange={(e) => setManagedHospitalId(e.target.value)}
+                          className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm"
+                          required
+                        >
+                          <option value="">Select a hospital…</option>
+                          {hospitals.map((h) => (
+                            <option key={h._id} value={h._id}>
+                              {h.name}
+                              {h.city ? ` — ${h.city}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4">

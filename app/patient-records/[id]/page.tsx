@@ -21,6 +21,15 @@ type Patient = {
 
 type NoteRaw = any;
 
+type NoteComment = {
+  _id?: string;
+  author?: string;
+  authorName?: string;
+  authorRole?: "therapist" | "supervisor";
+  text: string;
+  createdAt?: string;
+};
+
 type SoapNote = {
   _id: string;
   author?: { _id: string; name?: string; role?: string } | string;
@@ -41,6 +50,9 @@ type SoapNote = {
 
   createdAt: string;
   updatedAt?: string;
+
+  // Private therapist↔supervisor thread on this note.
+  comments?: NoteComment[];
 };
 
 export default function PatientRecordPage() {
@@ -155,6 +167,117 @@ function parseSoapFromText(raw: string) {
 
 
 
+function fmtCommentTime(d?: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString(undefined, {
+    day: "2-digit", month: "short",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+// ── private therapist↔supervisor thread under a single note ───────────────────
+function NoteCommentThread({
+  patientId,
+  therapistId,
+  noteId,
+  comments,
+  token,
+  onCommentAdded,
+}: {
+  patientId: string;
+  therapistId: string;
+  noteId: string;
+  comments: NoteComment[];
+  token: string | null;
+  onCommentAdded: (c: NoteComment) => void;
+}) {
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setErr("");
+    setPosting(true);
+    try {
+      const res: any = await api(
+        `api/record-requests/notes/${patientId}/${therapistId}/${noteId}/comment`,
+        {
+          method: "POST",
+          headers: {
+            ...authHeader(token || undefined),
+            "Content-Type": "application/json",
+          } as HeadersInit,
+          body: JSON.stringify({ text: trimmed }),
+        }
+      );
+      onCommentAdded(
+        res?.comment || {
+          text: trimmed,
+          authorRole: "therapist",
+          createdAt: new Date().toISOString(),
+        }
+      );
+      setText("");
+    } catch (e: any) {
+      setErr(e?.message || "Could not post comment.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-200 pt-3">
+      <p className="mb-2 text-[10px] uppercase tracking-wider text-gray-400">
+        Private comments · you & your supervisor
+      </p>
+      {comments.length > 0 && (
+        <ul className="mb-2 space-y-1.5">
+          {comments.map((c, i) => (
+            <li
+              key={c._id || i}
+              className={`rounded-lg px-2.5 py-1.5 text-xs ${
+                c.authorRole === "supervisor"
+                  ? "bg-violet-50 border border-violet-200"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              <p className="text-[10px] text-gray-500">
+                <span className="font-semibold text-gray-700">
+                  {c.authorName || (c.authorRole === "supervisor" ? "Supervisor" : "You")}
+                </span>
+                <span className="ml-1 text-gray-400">· {fmtCommentTime(c.createdAt)}</span>
+              </p>
+              <p className="mt-0.5 text-gray-800 whitespace-pre-wrap">{c.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-start gap-2">
+        <textarea
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Reply privately to your supervisor…"
+          disabled={posting}
+          maxLength={1000}
+          className="flex-1 resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:border-[#4b7eff] focus:outline-none disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim() || posting}
+          className="shrink-0 rounded-lg bg-[#4b7eff] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#3a6bef] disabled:opacity-50 transition-colors"
+        >
+          {posting ? "…" : "Post"}
+        </button>
+      </div>
+      {err && <p className="mt-1 text-[11px] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 function PatientRecordInner() {
   const params = useParams<{ id: string }>();
   const patientId = params?.id;
@@ -184,6 +307,36 @@ function PatientRecordInner() {
   const [summary, setSummary] = useState<any | null>(null);
 
   const canWrite = role === "therapist";
+
+  // Share with supervisor (therapist only)
+  const [sharing, setSharing] = useState(false);
+  const [shareDone, setShareDone] = useState(false);
+  async function shareWithSupervisor() {
+    if (!patientId || !token) return;
+    setSharing(true);
+    setErr("");
+    setMsg("");
+    try {
+      const res: any = await api("api/record-requests/share-with-supervisor", {
+        method: "POST",
+        headers: {
+          ...(authHeader(token) as HeadersInit),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ patient: patientId }),
+      });
+      setShareDone(true);
+      setMsg(
+        res?.reused
+          ? "Records were already shared with your supervisor."
+          : "Records shared with your supervisor."
+      );
+    } catch (e: any) {
+      setErr(e?.message || "Could not share records with supervisor.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   // Speech-to-text
   const [sttLang, setSttLang] = useState("en-US");
@@ -306,6 +459,7 @@ function PatientRecordInner() {
 
           createdAt: String(created),
           updatedAt: n?.updatedAt ? String(n.updatedAt) : undefined,
+          comments: Array.isArray(n?.comments) ? n.comments : [],
         };
       });
   }
@@ -472,7 +626,7 @@ function PatientRecordInner() {
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-4">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-xl font-semibold">{displayName}</h1>
               <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                 <span>
@@ -483,6 +637,20 @@ function PatientRecordInner() {
                 {patient?.phone && <span>{patient.phone}</span>}
               </div>
             </div>
+            {canWrite && (
+              <button
+                type="button"
+                onClick={shareWithSupervisor}
+                disabled={sharing || shareDone}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#4b7eff]/30 bg-[#4b7eff]/5 px-4 py-2 text-sm font-semibold text-[#4b7eff] hover:bg-[#4b7eff]/10 disabled:opacity-60 transition-colors"
+                title="Share this patient's records with your supervisor"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186zm0 12.814a2.25 2.25 0 103.933 2.185 2.25 2.25 0 00-3.933-2.185z" />
+                </svg>
+                {shareDone ? "Shared" : sharing ? "Sharing…" : "Share with supervisor"}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -773,6 +941,26 @@ function PatientRecordInner() {
                       {n.body || "—"}
                     </p>
                   )}
+
+                  {/* Private therapist↔supervisor thread (visible only to therapist & supervisor) */}
+                  {role === "therapist" && patientId && user?.id && n._id && (
+                    <NoteCommentThread
+                      patientId={patientId}
+                      therapistId={String(user.id)}
+                      noteId={String(n._id)}
+                      comments={n.comments || []}
+                      token={token}
+                      onCommentAdded={(c) => {
+                        setNotes((prev) =>
+                          prev.map((nn) =>
+                            nn._id === n._id
+                              ? { ...nn, comments: [...(nn.comments || []), c] }
+                              : nn
+                          )
+                        );
+                      }}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -808,15 +996,93 @@ function Field({
   onChange: (v: string) => void;
   rows?: number;
 }) {
+  // Per-field voice-to-text. Each Field instantiates its own recognizer; the
+  // browser allows only one active session at a time, so starting on field B
+  // will end any session on field A automatically (its onend fires).
+  const {
+    supported: sttSupported,
+    listening,
+    finalText,
+    interim,
+    error: sttError,
+    start,
+    stop,
+  } = useSpeechToText({ continuous: true, interimResults: true });
+
+  // baseRef = the field's value at the moment we last appended speech.
+  // lastFinalRef = the cumulative finalText we've already absorbed.
+  const baseRef = useRef(value);
+  const lastFinalRef = useRef("");
+
+  // Capture the current value as the base whenever a fresh listening session starts.
+  useEffect(() => {
+    if (listening) {
+      baseRef.current = value;
+      lastFinalRef.current = "";
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listening]);
+
+  // Append newly-finalized speech to the field.
+  useEffect(() => {
+    if (!finalText) return;
+    if (finalText === lastFinalRef.current) return;
+    const newPart = finalText.slice(lastFinalRef.current.length).trim();
+    lastFinalRef.current = finalText;
+    if (!newPart) return;
+    const merged = baseRef.current
+      ? `${baseRef.current.replace(/\s+$/, "")} ${newPart}`
+      : newPart;
+    baseRef.current = merged;
+    onChange(merged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalText]);
+
+  function toggleMic() {
+    if (listening) stop();
+    else start();
+  }
+
+  const showInterim = listening && interim;
+
   return (
     <div>
-      <label className="mb-1 block text-sm text-gray-700">{label}</label>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <label className="text-sm text-gray-700">{label}</label>
+        {sttSupported && (
+          <button
+            type="button"
+            onClick={toggleMic}
+            title={listening ? "Stop dictation" : "Dictate into this field"}
+            aria-pressed={listening}
+            className={[
+              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors",
+              listening
+                ? "bg-red-50 text-red-600 ring-1 ring-red-200 animate-pulse"
+                : "bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] hover:ring-[#4b7eff]/30",
+            ].join(" ")}
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+            {listening ? "Listening…" : "Mic"}
+          </button>
+        )}
+      </div>
       <textarea
         className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff]"
         rows={rows}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+      {showInterim && (
+        <p className="mt-1 text-[11px] italic text-gray-400 truncate" title={interim}>
+          …{interim}
+        </p>
+      )}
+      {sttError && listening && (
+        <p className="mt-1 text-[11px] text-red-500">Mic error: {sttError}</p>
+      )}
     </div>
   );
 }

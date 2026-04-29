@@ -199,6 +199,81 @@ function List() {
   const [q, setQ] = useState("");
   const [receiptAppt, setReceiptAppt] = useState<Appt | null>(null);
 
+  // Track sharing state by PATIENT id so the button hides for every appointment
+  // with that patient — not just the one the share was triggered from.
+  const [sharingPatientId, setSharingPatientId] = useState<string | null>(null);
+  const [sharedPatientIds, setSharedPatientIds] = useState<Set<string>>(new Set());
+
+  // On mount, pull the list of shares this therapist has already made and
+  // pre-populate sharedPatientIds so the button never re-appears for a patient
+  // whose records are already shared with their SUPERVISOR (not other therapists).
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const res: any = await api("api/record-requests/incoming", {
+          headers: authHeader(token) as HeadersInit,
+        });
+        const list = Array.isArray(res) ? res : [];
+        const ids = new Set<string>();
+        for (const r of list) {
+          if (r?.status !== "approved") continue;
+          // Only therapist→supervisor shares should suppress the button.
+          // therapist→therapist record-access requests must NOT count.
+          const recipientRole =
+            typeof r?.toTherapist === "object" ? r.toTherapist?.role : null;
+          if (recipientRole !== "supervisor") continue;
+          const pid =
+            typeof r?.patient === "string" ? r.patient : r?.patient?._id;
+          if (pid) ids.add(String(pid));
+        }
+        setSharedPatientIds(ids);
+      } catch {
+        /* silent — button will simply still show until first share succeeds */
+      }
+    })();
+  }, [token]);
+
+  async function shareWithSupervisor(appt: Appt) {
+    const patientId =
+      typeof appt.patient === "string" ? appt.patient : appt.patient?._id;
+    if (!patientId) {
+      setErr("This appointment has no patient attached.");
+      return;
+    }
+    if (!token) {
+      setErr("Session expired. Please log in again.");
+      return;
+    }
+    setErr("");
+    setMsg("");
+    setSharingPatientId(String(patientId));
+    try {
+      const res: any = await api("api/record-requests/share-with-supervisor", {
+        method: "POST",
+        headers: {
+          ...authHeader(token),
+          "Content-Type": "application/json",
+        } as HeadersInit,
+        body: JSON.stringify({ patient: patientId }),
+      });
+      setSharedPatientIds((prev) => {
+        const next = new Set(prev);
+        next.add(String(patientId));
+        return next;
+      });
+      setMsg(
+        res?.reused
+          ? "This patient's records were already shared with your supervisor."
+          : "Records shared with your supervisor."
+      );
+    } catch (e: any) {
+      setErr(e?.message || "Could not share records with supervisor.");
+    } finally {
+      setSharingPatientId(null);
+    }
+  }
+
   async function load() {
     setErr("");
     setMsg("");
@@ -555,17 +630,51 @@ function List() {
                       </div>
                     )}
 
-                    {/* Print receipt */}
-                    {(a.status === "confirmed" || a.status === "completed") && (
-                      <div className="mt-3">
-                        <button
-                          onClick={() => setReceiptAppt(a)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] transition-colors"
-                        >
-                          🖨️ See Receipt
-                        </button>
-                      </div>
-                    )}
+                    {/* Receipt + share row */}
+                    {(() => {
+                      const apptPatientId =
+                        typeof a.patient === "string"
+                          ? a.patient
+                          : a.patient?._id;
+                      const alreadyShared =
+                        !!apptPatientId &&
+                        sharedPatientIds.has(String(apptPatientId));
+                      const showShare =
+                        role === "therapist" && !!a.patient && !alreadyShared;
+                      const showReceipt =
+                        a.status === "confirmed" || a.status === "completed";
+
+                      if (!showShare && !showReceipt) return null;
+
+                      return (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {showReceipt && (
+                            <button
+                              onClick={() => setReceiptAppt(a)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] transition-colors"
+                            >
+                              🖨️ See Receipt
+                            </button>
+                          )}
+                          {showShare && (
+                            <button
+                              type="button"
+                              onClick={() => shareWithSupervisor(a)}
+                              disabled={sharingPatientId === String(apptPatientId)}
+                              title="Share this patient's records with your supervisor"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-[#4b7eff]/30 bg-[#4b7eff]/5 px-3 py-1.5 text-xs font-medium text-[#4b7eff] hover:bg-[#4b7eff]/10 disabled:opacity-60 transition-colors"
+                            >
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186zm0 12.814a2.25 2.25 0 103.933 2.185 2.25 2.25 0 00-3.933-2.185z" />
+                              </svg>
+                              {sharingPatientId === String(apptPatientId)
+                                ? "Sharing…"
+                                : "Share with supervisor"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Video link action for therapist on confirmed online appts */}
                     {role === "therapist" &&
