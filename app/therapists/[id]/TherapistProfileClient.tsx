@@ -509,10 +509,10 @@ export default function TherapistProfileClient() {
             </div>
 
             {/* ── Bottom CTA banner ────────────────────────────────────────── */}
-            <div className="rounded-2xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] p-6 text-white shadow-sm">
+            <div className="rounded-2xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] p-6  shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold">Ready to book with {therapist.name.split(" ")[0]}?</h2>
+                  <h2 className="text-lg font-bold text-white">Ready to book with {therapist.name.split(" ")[0]}?</h2>
                   <p className="mt-1 text-sm text-white/80">
                     Choose a time that works for you and confirm with a quick OTP verification.
                   </p>
