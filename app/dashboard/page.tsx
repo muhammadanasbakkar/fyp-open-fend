@@ -496,17 +496,17 @@ function ReceptionistDashboard({ user, token }: { user: any; token: string | nul
       </div>
 
       {/* Primary CTA */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0f766e] to-[#0d9488] p-6 text-white shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-2xl bg-gradient-to-r from-[#0f766e] to-[#0d9488] p-6  shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ">
           <div>
-            <h2 className="text-lg font-bold">Book an appointment for a patient</h2>
+            <h2 className="text-lg font-bold text-white">Book an appointment for a patient</h2>
             <p className="mt-1 text-sm text-white/80">
               Select a therapist and choose an available slot for a walk-in or registered patient.
             </p>
           </div>
           <Link
             href="/receptionist/book"
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#0f766e] shadow-sm hover:bg-white/90 transition-colors"
+            className=" inline-flex shrink-0 items-center gap-2 rounded-xl bg-white  px-5 py-2.5 text-sm font-semibold text-black shadow-sm hover:bg-white/90 transition-colors"
           >
             {Icons.plus}
             Book now

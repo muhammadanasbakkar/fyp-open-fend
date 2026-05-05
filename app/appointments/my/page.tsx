@@ -204,11 +204,11 @@ function List() {
   const [sharingPatientId, setSharingPatientId] = useState<string | null>(null);
   const [sharedPatientIds, setSharedPatientIds] = useState<Set<string>>(new Set());
 
-  // On mount, pull the list of shares this therapist has already made and
-  // pre-populate sharedPatientIds so the button never re-appears for a patient
-  // whose records are already shared with their SUPERVISOR (not other therapists).
+  // Only therapists (and superAdmin) can call /record-requests/incoming —
+  // for other roles the backend returns 403 and the share button doesn't apply.
   useEffect(() => {
     if (!token) return;
+    if (role !== "therapist" && role !== "superAdmin") return;
     (async () => {
       try {
         const res: any = await api("api/record-requests/incoming", {
@@ -218,8 +218,6 @@ function List() {
         const ids = new Set<string>();
         for (const r of list) {
           if (r?.status !== "approved") continue;
-          // Only therapist→supervisor shares should suppress the button.
-          // therapist→therapist record-access requests must NOT count.
           const recipientRole =
             typeof r?.toTherapist === "object" ? r.toTherapist?.role : null;
           if (recipientRole !== "supervisor") continue;
@@ -232,7 +230,7 @@ function List() {
         /* silent — button will simply still show until first share succeeds */
       }
     })();
-  }, [token]);
+  }, [token, role]);
 
   async function shareWithSupervisor(appt: Appt) {
     const patientId =
