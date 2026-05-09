@@ -13,17 +13,27 @@ const CDN = (process.env.NEXT_PUBLIC_CDN_BASE || "").replace(/\/+$/, "");
 // ── types ────────────────────────────────────────────────────────────────────
 type Cert = { name?: string; fileUrl?: string; fileKey?: string };
 
+type HospitalRef = { _id: string; name?: string; city?: string };
+
+type HospitalApprovalEntry = {
+  hospital: string | HospitalRef;
+  status: "pending" | "approved" | "rejected";
+  decidedAt?: string;
+  note?: string;
+};
+
 type PendingUser = {
   _id: string;
   name: string;
   email: string;
-  role: "therapist" | "receptionist";
+  role: "therapist" | "receptionist" | "supervisor";
   phone?: string;
   address?: string;
   dateOfBirth?: string;
   cnic?: string;
   profilePicture?: string;
   profilePictureKey?: string;
+  hospitalApprovals?: HospitalApprovalEntry[];
   therapistInfo?: {
     specializations?: string[];
     yearsExperience?: number;
@@ -38,6 +48,33 @@ type PendingUser = {
     careSettings?: string[];
     fees?: { currency?: string; online?: number; inPerson?: number };
   };
+  supervisorInfo?: {
+    specializations?: string[];
+    yearsExperience?: number;
+    dob?: string;
+    organization?: string;
+    clinicAddress?: string;
+    licenseNumber?: string;
+    licensingCouncil?: string;
+    certifications?: Cert[];
+  };
+};
+
+// ── role display helpers ────────────────────────────────────────────────────
+const ROLE_LABELS: Record<PendingUser["role"], string> = {
+  therapist: "Therapist",
+  receptionist: "Receptionist",
+  supervisor: "Supervisor",
+};
+const ROLE_COLORS: Record<PendingUser["role"], "emerald" | "indigo" | "violet"> = {
+  therapist: "emerald",
+  receptionist: "indigo",
+  supervisor: "violet",
+};
+const ROLE_PILL_CLS: Record<PendingUser["role"], string> = {
+  therapist: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  receptionist: "bg-indigo-50 text-indigo-700 ring-indigo-100",
+  supervisor: "bg-violet-50 text-violet-700 ring-violet-100",
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -131,6 +168,7 @@ function UserDetailDrawer({
 }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const t = user.therapistInfo;
+  const sup = user.supervisorInfo;
 
   const profileSrc = pickImageSrc(user.profilePictureKey, user.profilePicture);
 
@@ -141,7 +179,8 @@ function UserDetailDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, lightbox]);
 
-  const roleColor = user.role === "therapist" ? "emerald" : "indigo";
+  const roleColor = ROLE_COLORS[user.role];
+  const roleLabel = ROLE_LABELS[user.role];
 
   return (
     <>
@@ -157,7 +196,7 @@ function UserDetailDrawer({
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-3">
             <h2 className="text-base font-semibold text-gray-900">User Details</h2>
-            <TagPill label={user.role === "therapist" ? "Therapist" : "Receptionist"} color={roleColor as any} />
+            <TagPill label={roleLabel} color={roleColor as any} />
           </div>
           <button
             onClick={onClose}
@@ -207,6 +246,55 @@ function UserDetailDrawer({
               <InfoRow label="Address" value={user.address} />
               <InfoRow label="Date of birth" value={user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString("en-PK", { year: "numeric", month: "long", day: "numeric" }) : undefined} />
             </div>
+          </section>
+
+          {/* ── Hospital admin decisions (step 1 of 2) ── */}
+          <section>
+            <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">
+              Hospital Admin Decisions
+              <span className="ml-2 font-normal normal-case text-gray-400">
+                (Step 1 of 2 — required before your final approval)
+              </span>
+            </h4>
+            {!user.hospitalApprovals?.length ? (
+              <p className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500">
+                No hospital affiliation — proceeds straight to superadmin review.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {user.hospitalApprovals.map((a, i) => {
+                  const h = (typeof a.hospital === "object" ? a.hospital : null) as HospitalRef | null;
+                  const cls =
+                    a.status === "approved"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : a.status === "rejected"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-amber-100 text-amber-700";
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {h?.name || (typeof a.hospital === "string" ? a.hospital : "Hospital")}
+                        </p>
+                        {h?.city && <p className="text-xs text-gray-500">{h.city}</p>}
+                        {a.note && <p className="mt-1 text-xs italic text-gray-500">“{a.note}”</p>}
+                        {a.decidedAt && (
+                          <p className="mt-0.5 text-[11px] text-gray-400">
+                            {new Date(a.decidedAt).toLocaleString("en-PK")}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${cls}`}>
+                        {a.status}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
 
           {/* ── Therapist professional info ── */}
@@ -307,6 +395,87 @@ function UserDetailDrawer({
               )}
             </>
           )}
+
+          {/* ── Supervisor professional info ── */}
+          {user.role === "supervisor" && (
+            <>
+              <section>
+                <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Professional Details</h4>
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-2.5">
+                  {sup ? (
+                    <>
+                      <InfoRow label="Years experience" value={sup.yearsExperience} />
+                      <InfoRow
+                        label="Date of birth"
+                        value={sup.dob ? new Date(sup.dob).toLocaleDateString("en-PK", { year: "numeric", month: "long", day: "numeric" }) : undefined}
+                      />
+                      <InfoRow label="Organization" value={sup.organization} />
+                      <InfoRow label="License number" value={sup.licenseNumber} />
+                      <InfoRow label="Licensing council" value={sup.licensingCouncil} />
+                      <InfoRow label="Clinic address" value={sup.clinicAddress} />
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500">No professional details on file.</p>
+                  )}
+                </div>
+              </section>
+
+              {!!sup?.specializations?.length && (
+                <section>
+                  <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Specializations</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {sup.specializations.map((item) => (
+                      <TagPill key={item} label={item} color="violet" />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {!!sup?.certifications?.length && (
+                <section>
+                  <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">
+                    Certification Documents
+                    <span className="ml-2 font-normal normal-case text-gray-400">
+                      ({sup.certifications.length} file{sup.certifications.length > 1 ? "s" : ""})
+                    </span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {sup.certifications.map((c, i) => {
+                      const src = pickImageSrc(c.fileKey, c.fileUrl);
+                      if (!src) return null;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setLightbox(src)}
+                          className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm hover:ring-2 hover:ring-[#4b7eff]/50 transition-all"
+                          title={c.name || `Document ${i + 1}`}
+                        >
+                          <Image
+                            src={process.env.NEXT_PUBLIC_CDN_BASE + src}
+                            alt={c.name || `Certification ${i + 1}`}
+                            fill
+                            className="object-cover transition-transform group-hover:scale-105"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                          />
+                          <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                            <span className="text-[11px] font-medium text-white truncate">
+                              {c.name || `Document ${i + 1}`}
+                            </span>
+                          </div>
+                          <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                            </svg>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[11px] text-gray-400">Click any image to view full size</p>
+                </section>
+              )}
+            </>
+          )}
         </div>
 
         {/* Sticky footer — actions */}
@@ -351,7 +520,7 @@ export default function PendingUsersPage() {
   const [loading, setLoading]       = useState(true);
   const [err, setErr]               = useState("");
   const [q, setQ]                   = useState("");
-  const [filterRole, setFilterRole] = useState<"" | "therapist" | "receptionist">("");
+  const [filterRole, setFilterRole] = useState<"" | "therapist" | "receptionist" | "supervisor">("");
   const [selected, setSelected]     = useState<PendingUser | null>(null);
   const [acting, setActing]         = useState(false);
 
@@ -394,7 +563,7 @@ export default function PendingUsersPage() {
     return data.filter((u) => {
       const matchesRole = filterRole ? u.role === filterRole : true;
       if (!term) return matchesRole;
-      const hay = [u.name, u.email, u.role, u.phone, u.address, u.cnic, ...(u.therapistInfo?.specializations || [])]
+      const hay = [u.name, u.email, u.role, u.phone, u.address, u.cnic, ...(u.therapistInfo?.specializations || []), ...(u.supervisorInfo?.specializations || [])]
         .filter(Boolean).join(" ").toLowerCase();
       return matchesRole && hay.includes(term);
     });
@@ -447,6 +616,7 @@ export default function PendingUsersPage() {
               <option value="">All roles</option>
               <option value="therapist">Therapist</option>
               <option value="receptionist">Receptionist</option>
+              <option value="supervisor">Supervisor</option>
             </Select>
           </div>
           {filtered.length !== data.length && (
@@ -501,8 +671,8 @@ export default function PendingUsersPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold text-gray-900 truncate">{u.name}</span>
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${u.role === "therapist" ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-indigo-50 text-indigo-700 ring-indigo-100"}`}>
-                              {u.role === "therapist" ? "Therapist" : "Receptionist"}
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ROLE_PILL_CLS[u.role]}`}>
+                              {ROLE_LABELS[u.role]}
                             </span>
                           </div>
                           <p className="mt-0.5 text-xs text-gray-500 truncate">
@@ -510,11 +680,15 @@ export default function PendingUsersPage() {
                             {u.cnic && <> · CNIC {u.cnic}</>}
                             {certCount > 0 && <> · {certCount} cert{certCount > 1 ? "s" : ""}</>}
                           </p>
-                          {!!u.therapistInfo?.specializations?.length && (
-                            <p className="mt-0.5 text-xs text-gray-400 truncate">
-                              {u.therapistInfo.specializations.slice(0, 3).join(" · ")}
-                            </p>
-                          )}
+                          {(() => {
+                            const specs =
+                              u.therapistInfo?.specializations || u.supervisorInfo?.specializations || [];
+                            return specs.length > 0 ? (
+                              <p className="mt-0.5 text-xs text-gray-400 truncate">
+                                {specs.slice(0, 3).join(" · ")}
+                              </p>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
 

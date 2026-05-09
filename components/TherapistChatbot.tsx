@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { api, authHeader } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+
+// External Therabot endpoint — accepts { message } and returns the assistant reply.
+const THERABOT_URL = "https://therabot-amber.vercel.app/api/therapist-chat";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 type Message = { role: "user" | "assistant"; content: string };
@@ -52,25 +54,16 @@ const QUICK_PROMPTS = [
 
 // ── main component ─────────────────────────────────────────────────────────────
 export default function TherapistChatbot() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const patientId = usePatientIdFromPath();
 
   const [open, setOpen]           = useState(false);
   const [input, setInput]         = useState("");
   const [messages, setMessages]   = useState<Message[]>([]);
   const [loading, setLoading]     = useState(false);
-  const [ollamaOk, setOllamaOk]   = useState<boolean | null>(null);
   const [unread, setUnread]       = useState(0);
   const bottomRef                 = useRef<HTMLDivElement>(null);
   const inputRef                  = useRef<HTMLTextAreaElement>(null);
-
-  // All hooks must run before any early return (Rules of Hooks)
-  useEffect(() => {
-    if (!token || user?.role !== "therapist") return;
-    api("api/chatbot/status", { headers: authHeader(token) as HeadersInit })
-      .then((d: any) => setOllamaOk(d.modelReady))
-      .catch(() => setOllamaOk(false));
-  }, [token, user?.role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -94,28 +87,33 @@ export default function TherapistChatbot() {
     setInput("");
 
     const userMsg: Message = { role: "user", content };
-    const next = [...messages, userMsg];
-    setMessages(next);
+    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
     try {
-      const res: any = await api("api/chatbot/chat", {
+      const res = await fetch(THERABOT_URL, {
         method: "POST",
-        headers: {
-          ...(authHeader(token || undefined) as HeadersInit),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: content,
-          patientId: patientId || undefined,
-          history: next.slice(-10).map((m) => ({ role: m.role, content: m.content })),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: content }),
       });
-      setMessages((prev) => [...prev, { role: "assistant", content: res.reply }]);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText || `Therabot returned ${res.status}`);
+      }
+
+      // The endpoint may return the reply under a few common keys.
+      const data = await res.json().catch(() => null);
+      const reply: string =
+        (data && (data.reply || data.message || data.response || data.answer || data.text)) ||
+        (typeof data === "string" ? data : "") ||
+        "(empty response)";
+
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (e: any) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `⚠️ ${e.message || "Could not reach the AI assistant. Make sure Ollama is running."}` },
+        { role: "assistant", content: `⚠️ ${e.message || "Could not reach the AI assistant."}` },
       ]);
     } finally {
       setLoading(false);
@@ -173,36 +171,16 @@ export default function TherapistChatbot() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Ollama status dot */}
-              <div className="flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5">
-                <span className={`h-1.5 w-1.5 rounded-full ${
-                  ollamaOk === null ? "bg-gray-300" :
-                  ollamaOk ? "bg-emerald-400" : "bg-red-400"
-                }`} />
-                <span className="text-[10px] opacity-80">
-                  {ollamaOk === null ? "checking…" : ollamaOk ? "online" : "offline"}
-                </span>
-              </div>
-              <button
-                onClick={() => setMessages([])}
-                title="Clear chat"
-                className="rounded-lg p-1 hover:bg-white/20 transition-colors"
-              >
-                <svg className="h-3.5 w-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-              </button>
-            </div>
+            <button
+              onClick={() => setMessages([])}
+              title="Clear chat"
+              className="rounded-lg p-1 hover:bg-white/20 transition-colors"
+            >
+              <svg className="h-3.5 w-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+            </button>
           </div>
-
-          {/* offline banner */}
-          {ollamaOk === false && (
-            <div className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 text-xs text-amber-700">
-              <p className="font-semibold">Ollama is not running</p>
-              <p className="mt-0.5 opacity-80">Start it with: <code className="font-mono bg-amber-100 px-1 rounded">ollama serve</code></p>
-            </div>
-          )}
 
           {/* messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
