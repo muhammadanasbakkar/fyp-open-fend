@@ -43,6 +43,11 @@ type ReferralPacket = {
   };
 };
 
+function shortClinicLabel(h: Hospital, max = 42) {
+  const text = `${h.name}${h.address ? ` — ${h.address}` : ""}`;
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 const normalizeId = (x: any): string =>
   typeof x === "string" ? x : x?._id?.toString?.() ?? String(x);
 
@@ -505,32 +510,33 @@ function BookPageInner() {
   }, [slots]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] to-[#f8faff]">
+    // <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-[#eef2ff] to-[#f8faff]">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-gradient-to-b from-[#eef2ff] to-[#f8faff]">
       {/* ── Hero Header ── */}
-      <div className="bg-gradient-to-br from-[#3a5bef] via-[#4b7eff] to-[#7c3aed] px-4 pb-14 pt-8 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/90">
+      <div className="bg-gradient-to-br from-[#3a5bef] via-[#4b7eff] to-[#7c3aed] px-4 pb-12 pt-6 sm:px-6 sm:pb-14 sm:pt-8">
+        <div className="mx-auto max-w-6xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/90 sm:text-[11px]">
             <span className="h-1.5 w-1.5 rounded-full bg-white" />
             Patient Portal
           </span>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-white sm:mt-3 sm:text-3xl md:text-4xl">
             Book an Appointment
           </h1>
-          <p className="mt-1.5 text-sm text-white/75">
+          <p className="mt-1 text-xs text-white/75 sm:mt-1.5 sm:text-sm">
             Times shown in <span className="font-semibold text-white">{tz}</span>.
             A 6-digit code will be sent to confirm.
           </p>
-          {/* Dynamic progress steps */}
-          <div className="mt-5 flex flex-wrap items-center gap-1.5">
+          {/* Dynamic progress steps — full labels on sm+, compact pills on phones */}
+          <div className="mt-4 -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:mt-5 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
             {[
-              { label: "Choose Therapist", done: step1Done, active: !step1Done },
-              { label: "Select Clinic", done: step2Done, active: step1Done && !step2Done },
-              { label: "Pick Date & Time", done: step3Done, active: step2Done && !step3Done },
-              { label: "Confirm", done: false, active: step3Done && emailValid },
+              { label: "Choose Therapist", short: "Therapist", done: step1Done, active: !step1Done },
+              { label: "Select Clinic", short: "Clinic", done: step2Done, active: step1Done && !step2Done },
+              { label: "Pick Date & Time", short: "Date", done: step3Done, active: step2Done && !step3Done },
+              { label: "Confirm", short: "Confirm", done: false, active: step3Done && emailValid },
             ].map((s, i, arr) => (
-              <span key={s.label} className="flex items-center gap-1">
+              <span key={s.label} className="flex shrink-0 items-center gap-1 sm:shrink">
                 <span className={[
-                  "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all",
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all sm:px-3 sm:text-xs",
                   s.done ? "bg-emerald-400/30 text-white ring-1 ring-emerald-300/40"
                     : s.active ? "bg-white text-[#3a5bef] shadow-md"
                       : "bg-white/10 text-white/50",
@@ -544,7 +550,9 @@ function BookPageInner() {
                       {i + 1}
                     </span>
                   )}
-                  {s.label}
+                  {/* Short label on phones (saves horizontal space), full label on sm+ */}
+                  <span className="sm:hidden">{s.short}</span>
+                  <span className="hidden sm:inline">{s.label}</span>
                 </span>
                 {i < arr.length - 1 && <span className="text-white/25 text-xs">›</span>}
               </span>
@@ -553,47 +561,49 @@ function BookPageInner() {
         </div>
       </div>
 
-      <div style={{ marginTop: "15px" }} className="mx-auto max-w-5xl px-4 sm:px-6 -mt-6 pb-16 space-y-5">
-
+      {/* <div className="mx-auto max-w-6xl space-y-4 px-4 pb-28 sm:space-y-5 sm:px-6 xl:pb-16"> */}
+      <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-32 sm:space-y-5 sm:px-6 xl:pb-16">
         {/* ── Staff Tab Switcher (therapist / receptionist only) ── */}
         {isStaff && (
           <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-            <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-3">
+            <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 sm:px-5">
               <svg className="h-4 w-4 text-[#4b7eff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Booking Mode</p>
             </div>
-            <div className="flex p-1.5 gap-1.5">
+            <div className="flex gap-1.5 p-1.5">
               <button
                 type="button"
                 onClick={() => setBookingMode("self")}
                 className={[
-                  "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all",
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold transition-all sm:gap-2 sm:px-4 sm:py-3 sm:text-sm",
                   bookingMode === "self"
                     ? "bg-[#4b7eff] text-white shadow-md"
                     : "text-gray-600 hover:bg-gray-100",
                 ].join(" ")}
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </svg>
-                Book for Myself
+                <span className="sm:hidden">For Myself</span>
+                <span className="hidden sm:inline">Book for Myself</span>
               </button>
               <button
                 type="button"
                 onClick={() => setBookingMode("behalf")}
                 className={[
-                  "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all",
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs font-semibold transition-all sm:gap-2 sm:px-4 sm:py-3 sm:text-sm",
                   bookingMode === "behalf"
                     ? "bg-[#4b7eff] text-white shadow-md"
                     : "text-gray-600 hover:bg-gray-100",
                 ].join(" ")}
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                 </svg>
-                Book for a Patient
+                <span className="sm:hidden">For Patient</span>
+                <span className="hidden sm:inline">Book for a Patient</span>
               </button>
             </div>
             {bookingMode === "behalf" && (
@@ -612,7 +622,7 @@ function BookPageInner() {
 
         {/* ── Referral banner ── */}
         {referralId && (
-          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4 shadow-sm">
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 shadow-sm sm:px-5 sm:py-4">
             {loadingReferral ? (
               <p className="animate-pulse text-sm text-indigo-700">Checking referral…</p>
             ) : referral ? (
@@ -671,32 +681,33 @@ function BookPageInner() {
         )}
 
         {/* ── Main grid ── */}
-        <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-start">
+        {/* <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start"> */}
+        <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
           {/* ── Left column ── */}
-          <div className="space-y-5">
-
+          {/* <div className="space-y-5"> */}
+          <div className="min-w-0 space-y-4 sm:space-y-5">
             {/* Patient Info section — behalf mode only */}
             {bookingMode === "behalf" && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-                <div className="flex items-center gap-3 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-transparent px-5 py-4">
+                <div className="flex items-center gap-3 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-transparent px-4 py-3 sm:px-5 sm:py-4">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500 text-[11px] font-bold text-white shadow">
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                     </svg>
                   </span>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">Patient Information</p>
                     <p className="text-xs text-gray-500">Enter the patient&apos;s details to book on their behalf.</p>
                   </div>
                 </div>
-                <div className="p-5 pb-0">
+                <div className="p-4 pb-0 sm:p-5 sm:pb-0">
                   {/* ── Patient ID quick-lookup ── */}
                   <div className="mb-4 rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/50 p-4">
                     <p className="mb-2 text-xs font-semibold text-violet-700">
                       Quick Lookup by Patient ID
                       <span className="ml-1 font-normal text-violet-500">(e.g. PT-1234-20001231)</span>
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <div className="relative flex-1">
                         <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -718,7 +729,7 @@ function BookPageInner() {
                         <button
                           type="button"
                           onClick={clearPatientLookup}
-                          className="rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors"
+                          className="rounded-xl border-2 border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors sm:py-2"
                         >
                           Clear
                         </button>
@@ -727,7 +738,7 @@ function BookPageInner() {
                           type="button"
                           onClick={lookupPatient}
                           disabled={!patientIdInput.trim() || lookingUpPatient}
-                          className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                          className="rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50 transition-colors sm:py-2"
                         >
                           {lookingUpPatient ? "Searching…" : "Lookup"}
                         </button>
@@ -757,7 +768,7 @@ function BookPageInner() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 p-5 sm:grid-cols-2">
+                <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Patient Email <span className="text-red-500">*</span>
@@ -829,14 +840,14 @@ function BookPageInner() {
 
             {/* Step 1 — Therapist */}
             <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-              <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   <span className={["flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow transition-colors",
                     step1Done ? "bg-emerald-500 text-white" : "bg-[#4b7eff] text-white",
                   ].join(" ")}>
                     {step1Done ? "✓" : "1"}
                   </span>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">Choose Therapist</p>
                     <p className="text-xs text-gray-500">Select from your clinic's approved professionals.</p>
                   </div>
@@ -845,22 +856,24 @@ function BookPageInner() {
                   <button
                     type="button"
                     onClick={() => { setTherapistId(""); setExpandTherapistGrid(false); setMsg(""); setErr(""); }}
-                    className="rounded-lg px-2.5 py-1 text-xs font-medium text-[#4b7eff] hover:bg-[#4b7eff]/8 transition-colors"
+                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium text-[#4b7eff] hover:bg-[#4b7eff]/8 transition-colors"
                   >
                     Change
                   </button>
                 )}
               </div>
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 {loadingTherapists ? (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  // <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-3">
                     {Array.from({ length: 6 }).map((_, i) => (
+                      // <></>
                       <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
                     ))}
                   </div>
                 ) : selectedTherapist && !expandTherapistGrid ? (
                   /* Compact selected-therapist card */
-                  <div className="flex items-center gap-4 rounded-xl border-2 border-[#4b7eff] bg-[#4b7eff]/5 p-4">
+                  <div className="flex items-center gap-3 rounded-xl border-2 border-[#4b7eff] bg-[#4b7eff]/5 p-3 sm:gap-3 sm:p-4">
                     {(() => {
                       const cdnBase = process.env.NEXT_PUBLIC_CDN_BASE || "";
                       const src = selectedTherapist.profilePicture && selectedTherapist.profilePicture.startsWith("http")
@@ -869,16 +882,16 @@ function BookPageInner() {
                       return (
                         <Image
                           src={src}
-                          width={52}
-                          height={52}
+                          width={48}
+                          height={48}
                           alt={selectedTherapist.name || "Therapist"}
-                          className="h-13 w-13 rounded-full object-cover ring-2 ring-white shadow"
+                          className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white shadow sm:h-[52px] sm:w-[52px]"
                           onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
                         />
                       );
                     })()}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900">{selectedTherapist.name || selectedTherapist.email || "Therapist"}</p>
+                      <p className="truncate font-semibold text-gray-900">{selectedTherapist.name || selectedTherapist.email || "Therapist"}</p>
                       {!!selectedTherapist.specializations?.length && (
                         <p className="mt-0.5 truncate text-xs text-gray-500">{selectedTherapist.specializations.slice(0, 3).join(" · ")}</p>
                       )}
@@ -908,7 +921,8 @@ function BookPageInner() {
                           type="button"
                           onClick={() => { setTherapistId(t._id); setExpandTherapistGrid(false); setMsg(""); setErr(""); }}
                           className={[
-                            "group relative flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:-translate-y-0.5",
+                            "group relative flex min-w-0 flex-col rounded-xl border-2 p-3 text-left transition-all duration-150 hover:-translate-y-0.5 sm:p-4",
+                            // "group relative flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:-translate-y-0.5",
                             isSelected ? "border-[#4b7eff] bg-[#4b7eff]/5 shadow-md" : "border-gray-200 hover:border-gray-300 hover:shadow-sm",
                           ].join(" ")}
                         >
@@ -960,24 +974,25 @@ function BookPageInner() {
             {/* Step 2 — Clinic (in-person only) */}
             {mode === "in-person" && therapistId && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-                <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+                <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
                   <span className={["flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow transition-colors",
                     step2Done ? "bg-emerald-500 text-white" : "bg-[#4b7eff] text-white",
                   ].join(" ")}>
                     {step2Done ? "✓" : "2"}
                   </span>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">Select Clinic</p>
                     <p className="text-xs text-gray-500">Choose a hospital or clinic location.</p>
                   </div>
                 </div>
-                <div className="space-y-4 p-5">
+                <div className="space-y-4 p-4 sm:p-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Hospital / Clinic</label>
                       {loadingHospitals ? (
                         <div className="h-11 w-full animate-pulse rounded-xl bg-gray-100" />
                       ) : hospitals.length ? (
+                        <div className="min-w-0 max-w-full overflow-hidden [&_select]:w-full [&_select]:max-w-full [&_select]:truncate">
                         <Select
                           value={hospitalId}
                           onChange={(e) => setHospitalId(String(e.target.value))}
@@ -985,10 +1000,11 @@ function BookPageInner() {
                           <option value="">Select a clinic…</option>
                           {hospitals.map((h) => (
                             <option key={h._id} value={h._id}>
-                              {h.name}{h.address ? ` — ${h.address}` : ""}
+                              {shortClinicLabel(h)}
                             </option>
                           ))}
                         </Select>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                           <span>⚠️</span> No clinics configured for this therapist.
@@ -1023,24 +1039,41 @@ function BookPageInner() {
             {/* Step 3 — Date & Slots */}
             {therapistId && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-                <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+                <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
                   <span className={["flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow transition-colors",
                     step3Done ? "bg-emerald-500 text-white" : "bg-[#4b7eff] text-white",
                   ].join(" ")}>
                     {step3Done ? "✓" : "3"}
                   </span>
-                  <div>
+                  {/* <div className="min-w-0 flex-1"> */}
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <p className="text-sm font-semibold text-gray-900">Pick Day &amp; Time</p>
                     <p className="text-xs text-gray-500">Select a date then choose an available slot.</p>
                   </div>
                 </div>
-                <div className="space-y-5 p-5">
+                <div className="space-y-5 p-4 sm:p-5">
 
                   {/* Quick day navigation */}
                   <div>
-                    <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Quick Select</p>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {Array.from({ length: 8 }, (_, i) => {
+                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Quick Select</p>
+                      {/* Date picker — sits inline on sm+, drops onto its own line on phones below */}
+                      <div className="hidden shrink-0 sm:block">
+                        <Input
+                          type="date"
+                          value={dayjs(startLocal).format("YYYY-MM-DD")}
+                          onChange={(e) => {
+                            const d = dayjs(e.target.value);
+                            const cur = dayjs(startLocal);
+                            setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {/* <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"> */}
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
+                      {/* {Array.from({ length: 8 }, (_, i) => { */}
+                      {Array.from({ length: 7 }, (_, i) => {
                         const d = dayjs().add(i, "day");
                         const isActive = d.format("YYYY-MM-DD") === dayjs(startLocal).format("YYYY-MM-DD");
                         return (
@@ -1052,7 +1085,8 @@ function BookPageInner() {
                               setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
                             }}
                             className={[
-                              "flex shrink-0 flex-col items-center rounded-xl border-2 px-3 py-2 text-center transition-all",
+                              "flex min-w-0 flex-col items-center rounded-xl border-2 px-2 py-2 text-center transition-all",
+                              // "flex shrink-0 flex-col items-center rounded-xl border-2 px-3 py-2 text-center transition-all",
                               isActive
                                 ? "border-[#4b7eff] bg-[#4b7eff] text-white shadow-md"
                                 : "border-gray-200 bg-white text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff]",
@@ -1066,26 +1100,33 @@ function BookPageInner() {
                           </button>
                         );
                       })}
-                      <div className="flex shrink-0 items-center pl-1">
-                        <Input
-                          type="date"
-                          value={dayjs(startLocal).format("YYYY-MM-DD")}
-                          onChange={(e) => {
-                            const d = dayjs(e.target.value);
-                            const cur = dayjs(startLocal);
-                            setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
-                          }}
-                        />
-                      </div>
+                    </div>
+                    {/* Phone-only: full-width date picker below the strip so the strip itself can scroll cleanly */}
+                    <div className="mt-2 sm:hidden">
+                      <Input
+                        type="date"
+                        value={dayjs(startLocal).format("YYYY-MM-DD")}
+                        onChange={(e) => {
+                          const d = dayjs(e.target.value);
+                          const cur = dayjs(startLocal);
+                          setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
+                        }}
+                      />
                     </div>
                   </div>
 
                   {/* Slot grid */}
                   <div>
-                    <div className="mb-2.5 flex items-center justify-between">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                        Slots — {dayjs(startLocal).format("ddd, MMM D")}
-                      </p>
+                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                          Slots — {dayjs(startLocal).format("ddd, MMM D")}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">
+                          Times shown in your local zone
+                          <span className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-600">{tz}</span>
+                        </p>
+                      </div>
                       {slots.length > 0 && (
                         <span className="rounded-full bg-[#4b7eff]/10 px-2 py-0.5 text-[10px] font-semibold text-[#4b7eff]">
                           {slots.length} open
@@ -1093,25 +1134,27 @@ function BookPageInner() {
                       )}
                     </div>
                     {loadingSlots ? (
-                      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
+                      <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6">
+                        {/* // <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6"> */}
                         {Array.from({ length: 12 }).map((_, i) => (
-                          <div key={i} className="h-10 animate-pulse rounded-xl bg-gray-100" />
+                          <div key={i} className="h-12 animate-pulse rounded-xl bg-gray-100" />
                         ))}
                       </div>
                     ) : groupedSlots.length > 0 ? (
-                      <div className="space-y-4">
+                      // <div className="space-y-5">
+                      <div className="min-w-0 space-y-4 sm:space-y-5">
                         {groupedSlots.map((group) => (
                           <div key={group.label}>
-                            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                              <span>{group.icon}</span>
+                            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                              <span aria-hidden>{group.icon}</span>
                               {group.label}
                               <span className="ml-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-500">
                                 {group.slots.length}
                               </span>
                             </p>
-                            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                            {/* <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"> */}
+                            <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                               {group.slots.map((s) => {
-                                console.log("Rendering slot:", s);
                                 const isSel = selectedSlot?.start === s.start && selectedSlot?.end === s.end;
                                 return (
                                   <button
@@ -1120,18 +1163,25 @@ function BookPageInner() {
                                     disabled={posting}
                                     onClick={() => setSelectedSlot(isSel ? null : s)}
                                     aria-pressed={isSel}
+                                    aria-label={`Book ${dayjs(s.start).format("h:mm A")} on ${dayjs(s.start).format("dddd, MMMM D")}`}
                                     className={[
-                                      "rounded-xl border-2 py-2.5 text-center text-sm font-medium transition-all duration-100",
-                                      "focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/40 active:scale-95",
+                                      "group min-h-[48px] rounded-xl border-2 px-1 py-2 text-center transition-all duration-150 sm:py-2.5",
+                                      // "group rounded-xl border-2 py-2.5 text-center transition-all duration-150",
+                                      "focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/40 active:scale-[0.97]",
                                       isSel
-                                        ? "border-[#4b7eff] bg-[#4b7eff] text-white shadow-md"
-                                        : "border-gray-200 bg-white text-gray-700 hover:border-[#4b7eff]/50 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff]",
+                                        ? "border-[#4b7eff] bg-gradient-to-br from-[#4b7eff] to-[#6aa7ff] text-white shadow-lg shadow-[#4b7eff]/25"
+                                        : "border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:border-[#4b7eff]/50 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] hover:shadow-sm",
                                     ].join(" ")}
                                   >
-                                    {dayjs.utc(s.start).format("h:mm")}
-
-                                    {/* {dayjs(s.start).format("h:mm")} */}
-                                    <span className="block text-[9px] opacity-60">{dayjs.utc(s.start).format("A")}</span>
+                                    <span className="block text-sm font-semibold leading-tight">
+                                      {dayjs(s.start).format("h:mm")}
+                                    </span>
+                                    <span className={[
+                                      "block text-[10px] font-medium tracking-wide",
+                                      isSel ? "text-white/80" : "text-gray-400 group-hover:text-[#4b7eff]/70",
+                                    ].join(" ")}>
+                                      {dayjs(s.start).format("A")}
+                                    </span>
                                   </button>
                                 );
                               })}
@@ -1149,10 +1199,10 @@ function BookPageInner() {
                               <span className="text-sm font-semibold text-white">Selected Slot</span>
                             </div>
                             <div className="flex flex-col gap-3 bg-[#4b7eff]/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <p className="font-semibold text-gray-900">{dayjs.utc(selectedSlot.start).format("dddd, MMMM D, YYYY")}</p>
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-gray-900">{dayjs(selectedSlot.start).format("dddd, MMMM D, YYYY")}</p>
                                 <p className="mt-0.5 text-sm text-gray-600">
-                                  {dayjs.utc(selectedSlot.start).format("h:mm A")} – {dayjs.utc (selectedSlot.end).format("h:mm A")}
+                                  {dayjs(selectedSlot.start).format("h:mm A")} – {dayjs(selectedSlot.end).format("h:mm A")}
                                   <span className="ml-1.5 text-xs text-gray-400">({tz})</span>
                                 </p>
                                 {displayFee > 0 && (
@@ -1174,7 +1224,7 @@ function BookPageInner() {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-5">
+                      <div className="flex items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 sm:px-5 sm:py-5">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-xl">📭</span>
                         <div>
                           <p className="text-sm font-semibold text-amber-800">No slots available</p>
@@ -1187,16 +1237,91 @@ function BookPageInner() {
               </section>
             )}
 
+            {/* Mobile-only inline Book card — same controls as the sidebar CTA so
+                users on phones don't have to scroll past the Notes block to find
+                the email input + Book button. Hidden on xl where the sidebar shows. */}
+            {therapistId && hospitalId && (
+              <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 xl:hidden">
+                <div className={[
+                  "border-b border-gray-100 bg-gradient-to-r to-transparent px-4 py-3 sm:px-5 sm:py-4",
+                  bookingMode === "behalf" ? "from-violet-50" : "from-[#4b7eff]/8",
+                ].join(" ")}>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {bookingMode === "behalf" ? "Patient Contact" : "Confirm & Book"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {bookingMode === "behalf"
+                      ? "OTP will be sent to the patient's email."
+                      : "We'll email a 6-digit OTP to confirm."}
+                  </p>
+                </div>
+                <div className="space-y-3 p-4 sm:p-5">
+                  {bookingMode === "self" ? (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Your Email <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={emailAddr}
+                        onChange={(e) => setEmailAddr(e.target.value)}
+                      />
+                      {!emailValid && emailAddr && (
+                        <p className="mt-1.5 text-xs text-red-500">Please enter a valid email.</p>
+                      )}
+                    </div>
+                  ) : (
+                    !emailAddr && (
+                      <p className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700">
+                        Fill in the patient's email in the Patient Information card above.
+                      </p>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={selectedSlot ? confirmSelectedSlot : onSubmit}
+                    disabled={posting || !therapistId || !hospitalId || !emailValid || !selectedSlot}
+                    className={[
+                      "flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60",
+                      bookingMode === "behalf"
+                        ? "bg-gradient-to-r from-violet-500 to-violet-600"
+                        : "bg-gradient-to-r from-[#3a5bef] to-[#4b7eff]",
+                    ].join(" ")}
+                  >
+                    {posting ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Sending code…
+                      </>
+                    ) : !selectedSlot ? (
+                      "Pick a time slot above"
+                    ) : !emailValid ? (
+                      "Enter your email to continue"
+                    ) : (
+                      <>
+                        {bookingMode === "behalf" ? "Book for Patient & Send OTP" : "Book Appointment & Get OTP"}
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </section>
+            )}
+
             {/* Notes (optional) */}
             <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-              <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500">✎</span>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-gray-900">Notes &amp; Details</p>
                   <p className="text-xs text-gray-500">Optional information for your therapist.</p>
                 </div>
               </div>
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Reason for visit <span className="font-normal normal-case text-gray-400">(optional)</span>
                 </label>
@@ -1212,7 +1337,8 @@ function BookPageInner() {
           </div>
 
           {/* ── Right sidebar ── */}
-          <aside className="space-y-5 lg:sticky lg:top-6">
+          {/* <aside className="space-y-5 xl:sticky xl:top-6"> */}
+          <aside className="hidden space-y-5 xl:sticky xl:top-6 xl:block">
             {/* Contact & Verify + CTA */}
             <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
               <div className={[
@@ -1228,7 +1354,7 @@ function BookPageInner() {
                     : "Required for your booking confirmation OTP."}
                 </p>
               </div>
-              <div className="space-y-4 p-5">
+              <div className="space-y-4 p-4 sm:p-5">
 
                 {/* Email input — hidden in behalf mode (captured in Patient Info card) */}
                 {bookingMode === "self" ? (
@@ -1273,7 +1399,8 @@ function BookPageInner() {
                 <button
                   type="button"
                   onClick={selectedSlot ? confirmSelectedSlot : onSubmit}
-                  disabled={posting || !therapistId || !hospitalId || !emailValid}
+                  // disabled={posting || !therapistId || !hospitalId || !emailValid}
+                  disabled={posting || !therapistId || !hospitalId || !emailValid || !selectedSlot}
                   className={[
                     "w-full overflow-hidden rounded-xl py-3.5 text-sm font-bold text-white shadow-lg transition-all active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50",
                     bookingMode === "behalf"
@@ -1312,7 +1439,7 @@ function BookPageInner() {
 
             {/* Booking summary */}
             <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-              <div className="border-b border-gray-100 px-5 py-4">
+              <div className="border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
                 <p className="text-sm font-semibold text-gray-900">Booking Summary</p>
                 {bookingMode === "behalf" && (
                   <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
@@ -1323,7 +1450,7 @@ function BookPageInner() {
               </div>
               <ul className="divide-y divide-gray-100">
                 {bookingMode === "behalf" && (
-                  <li className="flex items-center justify-between gap-3 px-5 py-3">
+                  <li className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-2 text-gray-400">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
@@ -1348,12 +1475,14 @@ function BookPageInner() {
                   },
                   { icon: "💰", label: "Est. Fee", value: loadingFees ? "Calculating…" : `${currency} ${Number(displayFee || 0).toLocaleString()}`, highlight: true },
                 ].map((row) => (
-                  <li key={row.label} className="flex items-center justify-between gap-3 px-5 py-3">
+                  // <li key={row.label} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <li key={row.label} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-5">
                     <div className="flex items-center gap-2.5 text-gray-400">
                       <span className="text-base">{row.icon}</span>
                       <span className="text-xs">{row.label}</span>
                     </div>
-                    <span className={["max-w-[160px] truncate text-right text-xs", row.highlight ? "font-bold text-[#4b7eff]" : "font-medium text-gray-800"].join(" ")}>
+                    {/* <span className={["max-w-[160px] truncate text-right text-xs", row.highlight ? "font-bold text-[#4b7eff]" : "font-medium text-gray-800"].join(" ")}> */}
+                    <span className={["min-w-0 max-w-[55%] truncate text-right text-xs sm:max-w-[160px]", row.highlight ? "font-bold text-[#4b7eff]" : "font-medium text-gray-800"].join(" ")}>
                       {row.value}
                     </span>
                   </li>
@@ -1367,7 +1496,7 @@ function BookPageInner() {
             </section>
 
             {/* How it works */}
-            <section className="rounded-2xl border border-dashed border-[#4b7eff]/30 bg-[#4b7eff]/5 px-5 py-4">
+            <section className="rounded-2xl border border-dashed border-[#4b7eff]/30 bg-[#4b7eff]/5 px-4 py-3 sm:px-5 sm:py-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#4b7eff]">How it works</p>
               <ol className="space-y-3">
                 {[
@@ -1387,6 +1516,67 @@ function BookPageInner() {
             </section>
           </aside>
         </div>
+      </div>
+
+      {/* Mobile-only sticky CTA bar — keeps the primary action one-tap away on
+          phones where the right sidebar lives below the page fold. */}
+      {/* <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur xl:hidden"> */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur sm:px-4 xl:hidden">
+        {selectedSlot && (
+          <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-gray-900">
+                {dayjs(selectedSlot.start).format("ddd, MMM D")}
+                <span className="ml-1 font-normal text-gray-500">
+                  · {dayjs(selectedSlot.start).format("h:mm A")}
+                </span>
+              </p>
+              {!emailValid && (
+                <p className="text-[10px] text-amber-600">Enter your email below to enable booking</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedSlot(null)}
+              className="shrink-0 rounded-md text-[10px] font-medium text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline"
+            >
+              Change
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={selectedSlot ? confirmSelectedSlot : onSubmit}
+          disabled={posting || !therapistId || !hospitalId || !emailValid || !selectedSlot}
+          className={[
+            "flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3 text-sm font-bold text-white shadow-lg transition-all active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50",
+            bookingMode === "behalf"
+              ? "bg-gradient-to-r from-violet-500 to-violet-600"
+              : "bg-gradient-to-r from-[#3a5bef] to-[#4b7eff]",
+          ].join(" ")}
+        >
+          {posting ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              Sending code…
+            </>
+          ) : !therapistId ? (
+            "Choose a therapist to start"
+          ) : !hospitalId ? (
+            "Pick a clinic to continue"
+          ) : !selectedSlot ? (
+            "Pick a time slot"
+          ) : !emailValid ? (
+            "Enter email below to confirm"
+          ) : (
+            <>
+              {bookingMode === "behalf" ? "Book for Patient & Send OTP" : "Confirm & Get OTP"}
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

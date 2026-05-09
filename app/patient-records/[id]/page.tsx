@@ -306,37 +306,39 @@ function PatientRecordInner() {
   const [anonymizing, setAnonymizing] = useState(false);
   const [summary, setSummary] = useState<any | null>(null);
 
+  // When non-null, the SOAP form below is editing this existing note instead
+  // of creating a new one. Save will PATCH /notes/:noteId; Cancel clears it.
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+
   const canWrite = role === "therapist";
 
-  // Share with supervisor (therapist only)
-  const [sharing, setSharing] = useState(false);
-  const [shareDone, setShareDone] = useState(false);
-  async function shareWithSupervisor() {
-    if (!patientId || !token) return;
-    setSharing(true);
+  function startEditNote(n: SoapNote) {
+    if (!n._id) return;
+    setEditingNoteId(String(n._id));
+    setSubjective(n.subjective || "");
+    setObjective(n.objective || "");
+    setAssessment(n.assessment || "");
+    setPlan(n.plan || "");
+    setAdditionalNotes(n.additionalNotes || "");
+    setNoteBody(n.body || "");
     setErr("");
     setMsg("");
-    try {
-      const res: any = await api("api/record-requests/share-with-supervisor", {
-        method: "POST",
-        headers: {
-          ...(authHeader(token) as HeadersInit),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ patient: patientId }),
-      });
-      setShareDone(true);
-      setMsg(
-        res?.reused
-          ? "Records were already shared with your supervisor."
-          : "Records shared with your supervisor."
-      );
-    } catch (e: any) {
-      setErr(e?.message || "Could not share records with supervisor.");
-    } finally {
-      setSharing(false);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
+
+  function cancelEditNote() {
+    setEditingNoteId(null);
+    setSubjective("");
+    setObjective("");
+    setAssessment("");
+    setPlan("");
+    setAdditionalNotes("");
+    setNoteBody("");
+  }
+
+  // Note: records are auto-shared with the therapist's supervisor — no opt-in step.
 
   // Speech-to-text
   const [sttLang, setSttLang] = useState("en-US");
@@ -551,27 +553,46 @@ function PatientRecordInner() {
     setAdding(true);
 
     try {
+      // For an edit we always send every field (including empty ones) so that
+      // clearing a field actually clears it server-side. For a brand-new note
+      // we only send populated fields to keep the payload tight.
+      const isEdit = !!editingNoteId;
       const payload: any = {};
 
-      // always include SOAP (new)
-      if (subjective.trim()) payload.subjective = subjective.trim();
-      if (objective.trim()) payload.objective = objective.trim();
-      if (assessment.trim()) payload.assessment = assessment.trim();
-      if (plan.trim()) payload.plan = plan.trim();
-      if (additionalNotes.trim()) payload.additionalNotes = additionalNotes.trim();
+      if (isEdit) {
+        payload.subjective = subjective.trim();
+        payload.objective = objective.trim();
+        payload.assessment = assessment.trim();
+        payload.plan = plan.trim();
+        payload.additionalNotes = additionalNotes.trim();
+        payload.body = noteBody.trim();
+        // legacy mirror fields (the backend accepts both new + legacy keys)
+        payload.diagnosis = assessment.trim();
+        payload.treatment = plan.trim();
+      } else {
+        if (subjective.trim()) payload.subjective = subjective.trim();
+        if (objective.trim()) payload.objective = objective.trim();
+        if (assessment.trim()) payload.assessment = assessment.trim();
+        if (plan.trim()) payload.plan = plan.trim();
+        if (additionalNotes.trim()) payload.additionalNotes = additionalNotes.trim();
 
-      // keep legacy compatibility with your CURRENT backend controller:
-      // it expects objective/diagnosis/treatment/activity/body (see controller.patientRecord.js) :contentReference[oaicite:2]{index=2}
-      if (assessment.trim()) payload.diagnosis = assessment.trim();
-      if (plan.trim()) payload.treatment = plan.trim();
-      // activity is optional; if you want a separate activity UI later, split plan into treatment/activity.
-      // For now, don't force activity unless you want:
-      // payload.activity = "";
+        // keep legacy compatibility with your CURRENT backend controller:
+        // it expects objective/diagnosis/treatment/activity/body (see controller.patientRecord.js) :contentReference[oaicite:2]{index=2}
+        if (assessment.trim()) payload.diagnosis = assessment.trim();
+        if (plan.trim()) payload.treatment = plan.trim();
+        // activity is optional; if you want a separate activity UI later, split plan into treatment/activity.
+        // For now, don't force activity unless you want:
+        // payload.activity = "";
 
-      if (noteBody.trim()) payload.body = noteBody.trim(); // scratch / legacy free-text
+        if (noteBody.trim()) payload.body = noteBody.trim(); // scratch / legacy free-text
+      }
 
-      await api(`api/patient-records/${patientId}/notes`, {
-        method: "POST",
+      const url = isEdit
+        ? `api/patient-records/${patientId}/notes/${editingNoteId}`
+        : `api/patient-records/${patientId}/notes`;
+
+      await api(url, {
+        method: isEdit ? "PATCH" : "POST",
         headers: {
           ...authHeader(token || undefined),
           "Content-Type": "application/json",
@@ -585,11 +606,12 @@ function PatientRecordInner() {
       setAssessment("");
       setPlan("");
       setAdditionalNotes("");
+      setEditingNoteId(null);
 
-      setMsg("SOAP note added.");
+      setMsg(isEdit ? "SOAP note updated." : "SOAP note added.");
       await load();
     } catch (e: any) {
-      setErr(e.message || "Could not add note.");
+      setErr(e.message || "Could not save note.");
     } finally {
       setAdding(false);
     }
@@ -638,18 +660,15 @@ function PatientRecordInner() {
               </div>
             </div>
             {canWrite && (
-              <button
-                type="button"
-                onClick={shareWithSupervisor}
-                disabled={sharing || shareDone}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#4b7eff]/30 bg-[#4b7eff]/5 px-4 py-2 text-sm font-semibold text-[#4b7eff] hover:bg-[#4b7eff]/10 disabled:opacity-60 transition-colors"
-                title="Share this patient's records with your supervisor"
+              <span
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700"
+                title="Records are automatically visible to your supervisor"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186zm0 12.814a2.25 2.25 0 103.933 2.185 2.25 2.25 0 00-3.933-2.185z" />
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
-                {shareDone ? "Shared" : sharing ? "Sharing…" : "Share with supervisor"}
-              </button>
+                Auto-shared with supervisor
+              </span>
             )}
           </div>
         )}
@@ -666,11 +685,62 @@ function PatientRecordInner() {
         </div>
       )}
 
-      {/* Add SOAP note */}
+      {/* Add / Edit SOAP note */}
       {canWrite && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div
+          className={[
+            "rounded-2xl border bg-white shadow-sm transition-colors",
+            editingNoteId
+              ? "border-amber-300 ring-1 ring-amber-200/60"
+              : "border-gray-100",
+          ].join(" ")}
+        >
+          {/* Header strip */}
+          <div
+            className={[
+              "flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border-b px-5 py-3",
+              editingNoteId
+                ? "border-amber-200 bg-amber-50/60"
+                : "border-gray-100 bg-gradient-to-r from-[#4b7eff]/5 to-transparent",
+            ].join(" ")}
+          >
+            <div className="flex items-center gap-2.5">
+              <span
+                className={[
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                  editingNoteId
+                    ? "bg-amber-500/10 text-amber-700"
+                    : "bg-[#4b7eff]/10 text-[#4b7eff]",
+                ].join(" ")}
+                aria-hidden
+              >
+                {editingNoteId ? (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                  </svg>
+                ) : (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                )}
+              </span>
+              <p className="text-sm font-semibold text-gray-900">
+                {editingNoteId ? "Edit SOAP note" : "Add SOAP note"}
+              </p>
+              {editingNoteId && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Editing
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900">Add SOAP note</p>
+            <p className="text-sm font-medium text-gray-900 sr-only">
+              {editingNoteId ? "Edit SOAP note" : "Add SOAP note"}
+            </p>
 
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-xs text-gray-600">
@@ -800,53 +870,115 @@ function PatientRecordInner() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-900">SOAP fields</label>
+          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">SOAP fields</span>
+              <span className="text-[11px] text-gray-400">at least one is required</span>
+            </div>
             <button
               type="button"
               onClick={() => setShowStructured((s) => !s)}
-              className="text-xs text-[var(--brand,#4b7eff)] hover:underline"
+              className="text-xs font-medium text-[#4b7eff] hover:underline"
             >
               {showStructured ? "Hide" : "Show"}
             </button>
           </div>
 
           {showStructured && (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Subjective (S)" value={subjective} onChange={setSubjective} />
-              <Field label="Objective (O)" value={objective} onChange={setObjective} />
-              <Field label="Assessment (A)" value={assessment} onChange={setAssessment} />
-              <Field label="Plan (P)" value={plan} onChange={setPlan} />
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <RichField
+                soapTag="S"
+                tagColor="blue"
+                label="Subjective"
+                hint="What the patient reports — symptoms, history, concerns."
+                value={subjective}
+                onChange={setSubjective}
+                rows={5}
+              />
+              <RichField
+                soapTag="O"
+                tagColor="emerald"
+                label="Objective"
+                hint="Observable findings — vitals, exam, labs."
+                value={objective}
+                onChange={setObjective}
+                rows={5}
+              />
+              <RichField
+                soapTag="A"
+                tagColor="violet"
+                label="Assessment"
+                hint="Your clinical impression / diagnosis."
+                value={assessment}
+                onChange={setAssessment}
+                rows={5}
+              />
+              <RichField
+                soapTag="P"
+                tagColor="amber"
+                label="Plan"
+                hint="Treatment, follow-up, homework."
+                value={plan}
+                onChange={setPlan}
+                rows={5}
+              />
               <div className="sm:col-span-2">
-                <Field
-                  label="Additional notes (optional)"
+                <RichField
+                  label="Additional notes"
+                  hint="Optional — anything that doesn't fit above."
                   value={additionalNotes}
                   onChange={setAdditionalNotes}
-                  rows={3}
+                  rows={4}
                 />
               </div>
             </div>
           )}
 
-          <div className="mt-3 flex items-center gap-2">
-            <Button onClick={addNote} disabled={adding || !atLeastOneFilled}>
-              {adding ? "Saving…" : "Save SOAP note"}
-            </Button>
+          {/* Sticky-feeling action footer */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Button onClick={addNote} disabled={adding || !atLeastOneFilled}>
+                {adding
+                  ? "Saving…"
+                  : editingNoteId
+                    ? "Save changes"
+                    : "Save SOAP note"}
+              </Button>
 
-            <button
-              type="button"
-              className="text-xs text-gray-600 hover:underline"
-              onClick={() => {
-                setNoteBody("");
-                setSubjective("");
-                setObjective("");
-                setAssessment("");
-                setPlan("");
-                setAdditionalNotes("");
-              }}
-            >
-              Clear
-            </button>
+              {editingNoteId ? (
+                <button
+                  type="button"
+                  className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                  onClick={cancelEditNote}
+                  disabled={adding}
+                >
+                  Cancel edit
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline"
+                  onClick={() => {
+                    setNoteBody("");
+                    setSubjective("");
+                    setObjective("");
+                    setAssessment("");
+                    setPlan("");
+                    setAdditionalNotes("");
+                  }}
+                  disabled={adding}
+                >
+                  Clear all fields
+                </button>
+              )}
+            </div>
+
+            {!atLeastOneFilled && (
+              <p className="text-[11px] italic text-gray-500">
+                Fill at least one SOAP field to enable saving.
+              </p>
+            )}
+          </div>
           </div>
         </div>
       )}
@@ -886,60 +1018,73 @@ function PatientRecordInner() {
                   key={String(n._id ?? n.createdAt ?? i)}
                   className="rounded-lg border border-gray-100 bg-gray-50 p-3"
                 >
-                  <div className="flex items-center justify-between text-xs text-gray-600">
+                  <div className="flex items-center justify-between gap-2 text-xs text-gray-600">
                     <span>
                       {formatDate(n.createdAt)}
                       {n.updatedAt && n.updatedAt !== n.createdAt
                         ? ` (edited ${formatDate(n.updatedAt)})`
                         : ""}
                     </span>
-                    <span className="truncate">
-                      {typeof n.author === "string"
-                        ? n.author
-                        : n.author?.name || n.author?._id || "—"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* <span className="truncate">
+                        {typeof n.author === "string"
+                          ? n.author
+                          : n.author?.name || n.author?._id || "—"}
+                      </span> */}
+                      {canWrite && n._id && (
+                        <button
+                          type="button"
+                          onClick={() => startEditNote(n)}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100"
+                          title="Edit this note"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                          </svg>
+                          Edit
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {hasSoap ? (
-                    <div className="mt-2 space-y-1 text-sm text-gray-800">
+                    <div className="mt-2 space-y-2 text-sm text-gray-800">
                       {S && (
-                        <p>
-                          <span className="font-medium">S:</span> {S}
-                        </p>
+                        <SoapBlock label="S" tagColor="bg-blue-50 text-blue-700 ring-blue-200" html={renderNoteHtml(S)} />
                       )}
                       {O && (
-                        <p>
-                          <span className="font-medium">O:</span> {O}
-                        </p>
+                        <SoapBlock label="O" tagColor="bg-emerald-50 text-emerald-700 ring-emerald-200" html={renderNoteHtml(O)} />
                       )}
                       {A && (
-                        <p>
-                          <span className="font-medium">A:</span> {A}
-                        </p>
+                        <SoapBlock label="A" tagColor="bg-violet-50 text-violet-700 ring-violet-200" html={renderNoteHtml(A)} />
                       )}
                       {P && (
-                        <p>
-                          <span className="font-medium">P:</span> {P}
-                        </p>
+                        <SoapBlock label="P" tagColor="bg-amber-50 text-amber-700 ring-amber-200" html={renderNoteHtml(P)} />
                       )}
                       {n.additionalNotes && (
-                        <p>
-                          <span className="font-medium">Additional:</span>{" "}
-                          {n.additionalNotes}
-                        </p>
+                        <SoapBlock
+                          label="Additional"
+                          tagColor="bg-gray-100 text-gray-700 ring-gray-200"
+                          html={renderNoteHtml(n.additionalNotes)}
+                          wide
+                        />
                       )}
 
-                      {/* Optional: show legacy body if you want */}
                       {n.body && (
-                        <p className="opacity-70">
-                          <span className="font-medium">Legacy:</span> {n.body}
-                        </p>
+                        <SoapBlock
+                          label="Legacy"
+                          tagColor="bg-gray-50 text-gray-500 ring-gray-200"
+                          html={renderNoteHtml(n.body)}
+                          wide
+                          dim
+                        />
                       )}
                     </div>
                   ) : (
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
-                      {n.body || "—"}
-                    </p>
+                    <div
+                      className="mt-2 rich-content text-sm text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: renderNoteHtml(n.body || "—") }}
+                    />
                   )}
 
                   {/* Private therapist↔supervisor thread (visible only to therapist & supervisor) */}
@@ -987,15 +1132,28 @@ function PatientRecordInner() {
 
 function Field({
   label,
+  hint,
+  soapTag,
+  tagColor = "gray",
   value,
   onChange,
   rows = 3,
 }: {
   label: string;
+  hint?: string;
+  soapTag?: string;
+  tagColor?: "blue" | "emerald" | "violet" | "amber" | "gray";
   value: string;
   onChange: (v: string) => void;
   rows?: number;
 }) {
+  const tagCls: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-700 ring-blue-200",
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    violet: "bg-violet-50 text-violet-700 ring-violet-200",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    gray: "bg-gray-100 text-gray-700 ring-gray-200",
+  };
   // Per-field voice-to-text. Each Field instantiates its own recognizer; the
   // browser allows only one active session at a time, so starting on field B
   // will end any session on field A automatically (its onend fires).
@@ -1046,9 +1204,22 @@ function Field({
   const showInterim = listening && interim;
 
   return (
-    <div>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <label className="text-sm text-gray-700">{label}</label>
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm transition-colors focus-within:border-[#4b7eff]/60 focus-within:ring-2 focus-within:ring-[#4b7eff]/15">
+      <div className="flex items-start justify-between gap-2 border-b border-gray-100 bg-gray-50/60 px-3 py-2">
+        <div className="flex items-start gap-2 min-w-0">
+          {soapTag && (
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold ring-1 ${tagCls[tagColor]}`}
+              aria-hidden
+            >
+              {soapTag}
+            </span>
+          )}
+          <div className="min-w-0">
+            <label className="block text-sm font-semibold text-gray-800 leading-tight">{label}</label>
+            {hint && <p className="mt-0.5 text-[11px] text-gray-500 leading-tight">{hint}</p>}
+          </div>
+        </div>
         {sttSupported && (
           <button
             type="button"
@@ -1056,33 +1227,329 @@ function Field({
             title={listening ? "Stop dictation" : "Dictate into this field"}
             aria-pressed={listening}
             className={[
-              "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors",
+              "shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
               listening
                 ? "bg-red-50 text-red-600 ring-1 ring-red-200 animate-pulse"
-                : "bg-gray-50 text-gray-600 ring-1 ring-gray-200 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] hover:ring-[#4b7eff]/30",
+                : "bg-white text-gray-500 ring-1 ring-gray-200 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] hover:ring-[#4b7eff]/30",
             ].join(" ")}
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
             </svg>
-            {listening ? "Listening…" : "Mic"}
+            {listening ? "Rec" : "Mic"}
           </button>
         )}
       </div>
       <textarea
-        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#4b7eff] focus:border-[#4b7eff]"
+        className="block w-full resize-y rounded-b-xl border-0 bg-white px-3.5 py-3 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none"
+        style={{ minHeight: `${Math.max(96, rows * 24)}px` }}
         rows={rows}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        placeholder={hint ? "" : `Enter ${label.toLowerCase()}…`}
       />
       {showInterim && (
-        <p className="mt-1 text-[11px] italic text-gray-400 truncate" title={interim}>
+        <p className="border-t border-gray-100 px-3 py-1.5 text-[11px] italic text-gray-400 truncate" title={interim}>
           …{interim}
         </p>
       )}
       {sttError && listening && (
-        <p className="mt-1 text-[11px] text-red-500">Mic error: {sttError}</p>
+        <p className="border-t border-rose-100 bg-rose-50 px-3 py-1.5 text-[11px] text-red-600">Mic error: {sttError}</p>
       )}
+    </div>
+  );
+}
+
+// ── Rich-text field ────────────────────────────────────────────────────────
+// A minimal WYSIWYG editor — toolbar + contentEditable area, no extra deps.
+// Stores HTML. Backwards-compatible with plain-text legacy content (rendered
+// as-is; line breaks preserved in CSS via `whitespace-pre-wrap` on read view).
+function RichField({
+  label,
+  hint,
+  soapTag,
+  tagColor = "gray",
+  value,
+  onChange,
+  rows = 5,
+}: {
+  label: string;
+  hint?: string;
+  soapTag?: string;
+  tagColor?: "blue" | "emerald" | "violet" | "amber" | "gray";
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+}) {
+  const tagCls: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-700 ring-blue-200",
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    violet: "bg-violet-50 text-violet-700 ring-violet-200",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    gray: "bg-gray-100 text-gray-700 ring-gray-200",
+  };
+
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isInternalChange = useRef(false);
+  const [focused, setFocused] = useState(false);
+
+  // Sync external value → editor only when it differs from what's already
+  // rendered (avoids resetting the cursor on every keystroke).
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    if (isInternalChange.current) {
+      isInternalChange.current = false;
+      return;
+    }
+    if (el.innerHTML !== (value || "")) {
+      el.innerHTML = value || "";
+    }
+  }, [value]);
+
+  function emit() {
+    if (!editorRef.current) return;
+    isInternalChange.current = true;
+    onChange(editorRef.current.innerHTML);
+  }
+
+  function exec(cmd: string, arg?: string) {
+    editorRef.current?.focus();
+    // execCommand is deprecated but still supported in all major browsers and
+    // is the lightest way to do this without a 100KB+ editor library.
+    document.execCommand(cmd, false, arg);
+    emit();
+  }
+
+  // Per-field speech-to-text — appends recognised text into the editor.
+  const {
+    supported: sttSupported,
+    listening,
+    finalText,
+    interim,
+    error: sttError,
+    start,
+    stop,
+  } = useSpeechToText({ continuous: true, interimResults: true });
+
+  const lastFinalRef = useRef("");
+  useEffect(() => {
+    if (!finalText || finalText === lastFinalRef.current) return;
+    const newPart = finalText.slice(lastFinalRef.current.length).trim();
+    lastFinalRef.current = finalText;
+    if (!newPart || !editorRef.current) return;
+    // Append at end with a leading space if there's existing content.
+    const sep = editorRef.current.innerText.trim() ? " " : "";
+    document.execCommand("insertText", false, sep + newPart);
+    emit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalText]);
+
+  function toggleMic() {
+    if (listening) stop();
+    else {
+      lastFinalRef.current = "";
+      start();
+    }
+  }
+
+  // Toolbar buttons
+  const ToolbarBtn = ({
+    onClick,
+    title,
+    children,
+    active,
+  }: {
+    onClick: () => void;
+    title: string;
+    children: React.ReactNode;
+    active?: boolean;
+  }) => (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onMouseDown={(e) => e.preventDefault()} // keep editor focus
+      onClick={onClick}
+      className={[
+        "inline-flex h-7 min-w-[28px] items-center justify-center rounded-md px-1.5 text-xs font-semibold transition-colors",
+        active
+          ? "bg-[#4b7eff]/10 text-[#4b7eff]"
+          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+
+  const showInterim = listening && interim;
+
+  return (
+    <div
+      className={[
+        "rounded-xl border bg-white shadow-sm transition-colors",
+        focused ? "border-[#4b7eff]/60 ring-2 ring-[#4b7eff]/15" : "border-gray-200",
+      ].join(" ")}
+    >
+      {/* Label header */}
+      <div className="flex items-start justify-between gap-2 border-b border-gray-100 bg-gray-50/60 px-3 py-2">
+        <div className="flex items-start gap-2 min-w-0">
+          {soapTag && (
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold ring-1 ${tagCls[tagColor]}`}
+              aria-hidden
+            >
+              {soapTag}
+            </span>
+          )}
+          <div className="min-w-0">
+            <label className="block text-sm font-semibold text-gray-800 leading-tight">{label}</label>
+            {hint && <p className="mt-0.5 text-[11px] text-gray-500 leading-tight">{hint}</p>}
+          </div>
+        </div>
+        {sttSupported && (
+          <button
+            type="button"
+            onClick={toggleMic}
+            title={listening ? "Stop dictation" : "Dictate into this field"}
+            aria-pressed={listening}
+            className={[
+              "shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+              listening
+                ? "bg-red-50 text-red-600 ring-1 ring-red-200 animate-pulse"
+                : "bg-white text-gray-500 ring-1 ring-gray-200 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] hover:ring-[#4b7eff]/30",
+            ].join(" ")}
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+            {listening ? "Rec" : "Mic"}
+          </button>
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-100 bg-white px-2 py-1">
+        <ToolbarBtn onClick={() => exec("bold")} title="Bold (Ctrl+B)">
+          <span className="font-bold">B</span>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => exec("italic")} title="Italic (Ctrl+I)">
+          <span className="italic">I</span>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => exec("underline")} title="Underline (Ctrl+U)">
+          <span className="underline">U</span>
+        </ToolbarBtn>
+        <span className="mx-1 h-4 w-px bg-gray-200" />
+        <ToolbarBtn onClick={() => exec("formatBlock", "h3")} title="Heading">
+          H
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => exec("formatBlock", "p")} title="Paragraph">
+          P
+        </ToolbarBtn>
+        <span className="mx-1 h-4 w-px bg-gray-200" />
+        <ToolbarBtn onClick={() => exec("insertUnorderedList")} title="Bulleted list">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h.007v.008H3.75V6.75zm0 5.25h.007v.008H3.75v-.008zm0 5.25h.007v.008H3.75V17.25zM8.25 6.75h12M8.25 12h12M8.25 17.25h12" />
+          </svg>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => exec("insertOrderedList")} title="Numbered list">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3.75 6.75h.007v.008H3.75V6.75zM3.75 12h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z" />
+          </svg>
+        </ToolbarBtn>
+        <span className="mx-1 h-4 w-px bg-gray-200" />
+        <ToolbarBtn onClick={() => exec("outdent")} title="Outdent">‹</ToolbarBtn>
+        <ToolbarBtn onClick={() => exec("indent")} title="Indent">›</ToolbarBtn>
+        <span className="mx-1 h-4 w-px bg-gray-200" />
+        <ToolbarBtn onClick={() => exec("removeFormat")} title="Clear formatting">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </ToolbarBtn>
+        <span className="ml-auto" />
+        <ToolbarBtn onClick={() => exec("undo")} title="Undo (Ctrl+Z)">↶</ToolbarBtn>
+        <ToolbarBtn onClick={() => exec("redo")} title="Redo (Ctrl+Y)">↷</ToolbarBtn>
+      </div>
+
+      {/* Editor */}
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={emit}
+        onBlur={() => { setFocused(false); emit(); }}
+        onFocus={() => setFocused(true)}
+        onPaste={(e) => {
+          // Strip rich formatting on paste — clinicians often paste from Word
+          // and end up with stray inline styles. Plain text is safer.
+          e.preventDefault();
+          const text = e.clipboardData.getData("text/plain");
+          document.execCommand("insertText", false, text);
+        }}
+        className="rich-editor block w-full overflow-y-auto rounded-b-xl px-3.5 py-3 text-sm leading-relaxed text-gray-900 focus:outline-none"
+        style={{ minHeight: `${Math.max(120, rows * 24)}px`, maxHeight: "320px" }}
+        aria-label={label}
+        data-placeholder={hint || `Enter ${label.toLowerCase()}…`}
+      />
+      {showInterim && (
+        <p className="border-t border-gray-100 px-3 py-1.5 text-[11px] italic text-gray-400 truncate" title={interim}>
+          …{interim}
+        </p>
+      )}
+      {sttError && listening && (
+        <p className="border-t border-rose-100 bg-rose-50 px-3 py-1.5 text-[11px] text-red-600">Mic error: {sttError}</p>
+      )}
+    </div>
+  );
+}
+
+// ── Rendered HTML utilities ────────────────────────────────────────────────
+// Convert a stored note value to safe-ish HTML for display. If it already
+// looks like HTML (has <tag> markers from the rich editor) we render as-is;
+// otherwise it's legacy plain text and we preserve newlines via <br>.
+function looksLikeHtml(s: string) {
+  return /<\/?[a-z][^>]*>/i.test(s);
+}
+function renderNoteHtml(s?: string): string {
+  if (!s) return "";
+  if (looksLikeHtml(s)) return s;
+  // Escape, then convert newlines to <br>.
+  const escaped = s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped.replace(/\n/g, "<br>");
+}
+
+// Small block used to render a single SOAP letter section in the read view.
+// Renders the stored value as HTML so bullets/bold/etc. survive round-trip.
+function SoapBlock({
+  label,
+  tagColor,
+  html,
+  wide,
+  dim,
+}: {
+  label: string;
+  tagColor: string;
+  html: string;
+  wide?: boolean;
+  dim?: boolean;
+}) {
+  return (
+    <div className={`flex gap-2 ${dim ? "opacity-70" : ""}`}>
+      <span
+        className={`mt-0.5 inline-flex h-5 ${
+          wide ? "px-2" : "w-5 justify-center"
+        } shrink-0 items-center rounded-md text-[10px] font-bold ring-1 ${tagColor}`}
+        aria-hidden
+      >
+        {label}
+      </span>
+      <div
+        className="rich-content min-w-0 flex-1 leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </div>
   );
 }

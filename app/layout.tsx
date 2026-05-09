@@ -3,10 +3,19 @@ import Footer from "@/components/Footer";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/lib/auth";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
 import TherapistChatbot from "@/components/TherapistChatbot";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://therakonnect.com";
+
+// Tells mobile browsers to render the page at the device's pixel width
+// (not Next.js's default 980px assumption), which is what makes Tailwind's
+// sm:/md:/lg: breakpoints actually fire on phones.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -1236,6 +1236,7 @@ import Input from "@/components/Input";
 import Button from "@/components/Button";
 import MySwal from "@/components/MySwal";
 import { compressImage, compressImages } from "@/lib/compressImage";
+import PolicyConsent from "@/components/PolicyConsent";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -1405,6 +1406,11 @@ export default function RegisterStaffPage() {
   const [err, setErr] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
+  // The privacy summary differs by role, so any prior consent must be re-confirmed
+  // when the user switches role tabs.
+  useEffect(() => { setAgreed(false); }, [role]);
 
   const profilePreview = useMemo(
     () => (form.profileFile ? URL.createObjectURL(form.profileFile) : ""),
@@ -1638,6 +1644,10 @@ export default function RegisterStaffPage() {
     try {
       if (!form.name || !form.email || !form.password || !form.phone || !form.cnic) {
         throw new Error("Please fill all required fields.");
+      }
+
+      if (!agreed) {
+        throw new Error("You must agree to the TheraKonnect Privacy Policy to register.");
       }
 
       if (!form.profileFile) throw new Error("Profile picture is required.");
@@ -2827,9 +2837,18 @@ export default function RegisterStaffPage() {
                 approved.
               </p>
 
+              {/* Role-specific privacy summary + consent — copy switches based on
+                  the active role tab (therapist / receptionist / supervisor) */}
+              <PolicyConsent
+                role={role}
+                agreed={agreed}
+                onChange={setAgreed}
+                className="mt-4"
+              />
+
               <Button
-                className="w-full rounded-xl py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] hover:brightness-105 active:brightness-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4b7eff] focus-visible:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={loading}
+                className="mt-4 w-full rounded-xl py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] hover:brightness-105 active:brightness-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4b7eff] focus-visible:ring-offset-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={loading || !agreed}
                 type="submit"
               >
                 {loading ? (

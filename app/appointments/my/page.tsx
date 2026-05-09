@@ -20,6 +20,11 @@ type Appt = {
   therapist?: { _id: string; name: string } | string;
   patient?: { _id: string; name: string; patientId?: string } | string;
   createdAt?: string;
+  // Set by the backend so we know which of the three icons (Notes / Assessment /
+  // Treatment Plan) to surface. If none are true, no icons are shown.
+  hasNotes?: boolean;
+  hasAssessment?: boolean;
+  hasTreatmentPlan?: boolean;
 };
 
 export default function MyAppointmentsPage() {
@@ -199,78 +204,8 @@ function List() {
   const [q, setQ] = useState("");
   const [receiptAppt, setReceiptAppt] = useState<Appt | null>(null);
 
-  // Track sharing state by PATIENT id so the button hides for every appointment
-  // with that patient — not just the one the share was triggered from.
-  const [sharingPatientId, setSharingPatientId] = useState<string | null>(null);
-  const [sharedPatientIds, setSharedPatientIds] = useState<Set<string>>(new Set());
-
-  // Only therapists (and superAdmin) can call /record-requests/incoming —
-  // for other roles the backend returns 403 and the share button doesn't apply.
-  useEffect(() => {
-    if (!token) return;
-    if (role !== "therapist" && role !== "superAdmin") return;
-    (async () => {
-      try {
-        const res: any = await api("api/record-requests/incoming", {
-          headers: authHeader(token) as HeadersInit,
-        });
-        const list = Array.isArray(res) ? res : [];
-        const ids = new Set<string>();
-        for (const r of list) {
-          if (r?.status !== "approved") continue;
-          const recipientRole =
-            typeof r?.toTherapist === "object" ? r.toTherapist?.role : null;
-          if (recipientRole !== "supervisor") continue;
-          const pid =
-            typeof r?.patient === "string" ? r.patient : r?.patient?._id;
-          if (pid) ids.add(String(pid));
-        }
-        setSharedPatientIds(ids);
-      } catch {
-        /* silent — button will simply still show until first share succeeds */
-      }
-    })();
-  }, [token, role]);
-
-  async function shareWithSupervisor(appt: Appt) {
-    const patientId =
-      typeof appt.patient === "string" ? appt.patient : appt.patient?._id;
-    if (!patientId) {
-      setErr("This appointment has no patient attached.");
-      return;
-    }
-    if (!token) {
-      setErr("Session expired. Please log in again.");
-      return;
-    }
-    setErr("");
-    setMsg("");
-    setSharingPatientId(String(patientId));
-    try {
-      const res: any = await api("api/record-requests/share-with-supervisor", {
-        method: "POST",
-        headers: {
-          ...authHeader(token),
-          "Content-Type": "application/json",
-        } as HeadersInit,
-        body: JSON.stringify({ patient: patientId }),
-      });
-      setSharedPatientIds((prev) => {
-        const next = new Set(prev);
-        next.add(String(patientId));
-        return next;
-      });
-      setMsg(
-        res?.reused
-          ? "This patient's records were already shared with your supervisor."
-          : "Records shared with your supervisor."
-      );
-    } catch (e: any) {
-      setErr(e?.message || "Could not share records with supervisor.");
-    } finally {
-      setSharingPatientId(null);
-    }
-  }
+  // Records are auto-shared with the therapist's supervisor — no per-patient
+  // opt-in flow lives here anymore.
 
   async function load() {
     setErr("");
@@ -562,52 +497,64 @@ function List() {
                       )}
                     </div>
 
-                    {/* Notes link for therapist */}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {role === "therapist" && a.patient && (
-                        <>
-                          <Link
-                            href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(
-                              (a.patient as any)?._id || String(a.patient)
-                            )}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
-                            title="Open assessment form"
-                            prefetch={false}
-                          >
-                            🧾 Assessment
-                          </Link>
-                          <Link
-                          href={`/patient-records/${(a.patient as any)?._id || a.patient}/treatment-plan`}
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
-                            title="Open treatment plan"
-                            prefetch={false}
-                          >
-                            📋 Treatment Plan
-                          </Link>
+                    {/* Existing-record icons for therapist — only what's actually been saved.
+                        If nothing is saved yet we fall back to the three create links so the
+                        therapist still has a way to start any of them. */}
+                    {(() => {
+                      const patientIdForLink =
+                        (a.patient as any)?._id || String(a.patient || "");
+                      if (role !== "therapist" || !a.patient) {
+                        return a.meetingLink && a.mode === "online" && role !== "therapist" ? (
+                          <div className="mt-2">
+                            <a
+                              href={a.meetingLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-[#4b7eff] underline"
+                            >
+                              Join video session
+                            </a>
+                          </div>
+                        ) : null;
+                      }
 
-                          <Link
-                            href={`/patient-records/${(a.patient as any)?._id || a.patient
-                              }`}
-                            className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
-                            title="Open patient records"
-                            prefetch={false}
-                          >
-                            📝 Notes
-                          </Link>
-                        </>)}
-                      {a.meetingLink &&
-                        a.mode === "online" &&
-                        role !== "therapist" && (
-                          <a
-                            href={a.meetingLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-[#4b7eff] underline"
-                          >
-                            Join video session
-                          </a>
-                        )}
-                    </div>
+                      const anySaved = a.hasNotes || a.hasAssessment || a.hasTreatmentPlan;
+
+                      return (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {(!anySaved || a.hasAssessment) && (
+                            <Link
+                              href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(patientIdForLink)}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
+                              title={a.hasAssessment ? "Open saved assessment" : "Open assessment form"}
+                              prefetch={false}
+                            >
+                              🧾 Assessment{a.hasAssessment ? " ✓" : ""}
+                            </Link>
+                          )}
+                          {(!anySaved || a.hasTreatmentPlan) && (
+                            <Link
+                              href={`/patient-records/${patientIdForLink}/treatment-plan`}
+                              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                              title={a.hasTreatmentPlan ? "Open saved treatment plan" : "Open treatment plan"}
+                              prefetch={false}
+                            >
+                              📋 Treatment Plan{a.hasTreatmentPlan ? " ✓" : ""}
+                            </Link>
+                          )}
+                          {(!anySaved || a.hasNotes) && (
+                            <Link
+                              href={`/patient-records/${patientIdForLink}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                              title={a.hasNotes ? "Open saved notes" : "Open patient records"}
+                              prefetch={false}
+                            >
+                              📝 Notes{a.hasNotes ? " ✓" : ""}
+                            </Link>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Pending actions */}
                     {isPending && role === "therapist" && (
@@ -628,51 +575,18 @@ function List() {
                       </div>
                     )}
 
-                    {/* Receipt + share row */}
-                    {(() => {
-                      const apptPatientId =
-                        typeof a.patient === "string"
-                          ? a.patient
-                          : a.patient?._id;
-                      const alreadyShared =
-                        !!apptPatientId &&
-                        sharedPatientIds.has(String(apptPatientId));
-                      const showShare =
-                        role === "therapist" && !!a.patient && !alreadyShared;
-                      const showReceipt =
-                        a.status === "confirmed" || a.status === "completed";
 
-                      if (!showShare && !showReceipt) return null;
-
-                      return (
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          {showReceipt && (
-                            <button
-                              onClick={() => setReceiptAppt(a)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] transition-colors"
-                            >
-                              🖨️ See Receipt
-                            </button>
-                          )}
-                          {showShare && (
-                            <button
-                              type="button"
-                              onClick={() => shareWithSupervisor(a)}
-                              disabled={sharingPatientId === String(apptPatientId)}
-                              title="Share this patient's records with your supervisor"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-[#4b7eff]/30 bg-[#4b7eff]/5 px-3 py-1.5 text-xs font-medium text-[#4b7eff] hover:bg-[#4b7eff]/10 disabled:opacity-60 transition-colors"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186zm0 12.814a2.25 2.25 0 103.933 2.185 2.25 2.25 0 00-3.933-2.185z" />
-                              </svg>
-                              {sharingPatientId === String(apptPatientId)
-                                ? "Sharing…"
-                                : "Share with supervisor"}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {/* Receipt row */}
+                    {(a.status === "confirmed" || a.status === "completed") && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => setReceiptAppt(a)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] transition-colors"
+                        >
+                          🖨️ See Receipt
+                        </button>
+                      </div>
+                    )}
 
                     {/* Video link action for therapist on confirmed online appts */}
                     {role === "therapist" &&

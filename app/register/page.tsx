@@ -307,6 +307,7 @@ import Input from "@/components/Input";
 import Select from "@/components/Select";
 import { alertWarning, alertError } from "@/components/MySwal";
 import Button from "@/components/Button";
+import PolicyConsent from "@/components/PolicyConsent";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/";
 
@@ -319,6 +320,7 @@ export default function RegisterPatientPage() {
   const [err, setErr] = useState("");
   const [info, setInfo] = useState<{ patientId?: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const passwordRules = {
     length: password.length >= 8,
@@ -340,6 +342,15 @@ export default function RegisterPatientPage() {
       if (!isPasswordValid) {
         setLoading(false);
         alertWarning("Weak password", "Password must be at least 8 characters and include uppercase, lowercase, number and symbol.");
+        return;
+      }
+
+      if (!agreed) {
+        setLoading(false);
+        alertWarning(
+          "Privacy Policy not accepted",
+          "You must agree to the TheraKonnect Privacy Policy to register."
+        );
         return;
       }
 
@@ -647,9 +658,17 @@ export default function RegisterPatientPage() {
                 )}
               </div>
 
+              {/* Patient-specific privacy summary + consent */}
+              <PolicyConsent
+                role="patient"
+                agreed={agreed}
+                onChange={setAgreed}
+                className="mt-4"
+              />
+
               <Button
                 className="w-full rounded-xl py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] hover:brightness-105 active:brightness-95 shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={loading || !isPasswordValid}
+                disabled={loading || !isPasswordValid || !agreed}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
