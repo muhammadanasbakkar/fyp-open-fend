@@ -497,9 +497,10 @@ function List() {
                       )}
                     </div>
 
-                    {/* Existing-record icons for therapist — only what's actually been saved.
-                        If nothing is saved yet we fall back to the three create links so the
-                        therapist still has a way to start any of them. */}
+                    {/* Therapist quick-access — always show all three forms.
+                        A ✓ marker appears on whichever ones already have saved
+                        content so the therapist can spot what's been filled,
+                        while still being able to open any of them at any time. */}
                     {(() => {
                       const patientIdForLink =
                         (a.patient as any)?._id || String(a.patient || "");
@@ -518,40 +519,32 @@ function List() {
                         ) : null;
                       }
 
-                      const anySaved = a.hasNotes || a.hasAssessment || a.hasTreatmentPlan;
-
                       return (
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                          {(!anySaved || a.hasAssessment) && (
-                            <Link
-                              href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(patientIdForLink)}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
-                              title={a.hasAssessment ? "Open saved assessment" : "Open assessment form"}
-                              prefetch={false}
-                            >
-                              🧾 Assessment{a.hasAssessment ? " ✓" : ""}
-                            </Link>
-                          )}
-                          {(!anySaved || a.hasTreatmentPlan) && (
-                            <Link
-                              href={`/patient-records/${patientIdForLink}/treatment-plan`}
-                              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
-                              title={a.hasTreatmentPlan ? "Open saved treatment plan" : "Open treatment plan"}
-                              prefetch={false}
-                            >
-                              📋 Treatment Plan{a.hasTreatmentPlan ? " ✓" : ""}
-                            </Link>
-                          )}
-                          {(!anySaved || a.hasNotes) && (
-                            <Link
-                              href={`/patient-records/${patientIdForLink}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
-                              title={a.hasNotes ? "Open saved notes" : "Open patient records"}
-                              prefetch={false}
-                            >
-                              📝 Notes{a.hasNotes ? " ✓" : ""}
-                            </Link>
-                          )}
+                          <Link
+                            href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(patientIdForLink)}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
+                            title={a.hasAssessment ? "Open saved session notes" : "Open session notes form"}
+                            prefetch={false}
+                          >
+                            🧾 Session Notes{a.hasAssessment ? " ✓" : ""}
+                          </Link>
+                          <Link
+                            href={`/patient-records/${patientIdForLink}/treatment-plan`}
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                            title={a.hasTreatmentPlan ? "Open saved treatment plan" : "Open treatment plan"}
+                            prefetch={false}
+                          >
+                            📋 Treatment Plan{a.hasTreatmentPlan ? " ✓" : ""}
+                          </Link>
+                          <Link
+                            href={`/patient-records/${patientIdForLink}`}
+                            className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                            title={a.hasNotes ? "Open saved assessment / SOAP notes" : "Open patient assessment / SOAP notes"}
+                            prefetch={false}
+                          >
+                            📝 Assessment{a.hasNotes ? " ✓" : ""}
+                          </Link>
                         </div>
                       );
                     })()}

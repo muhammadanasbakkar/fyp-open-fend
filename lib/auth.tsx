@@ -181,12 +181,18 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { useRouter } from "next/navigation";
 
 export type UserRole = "patient" | "therapist" | "receptionist" | "admin" | "superAdmin" | "supervisor" | "hospitalAdmin";
+export type PrivacyAcceptance = {
+  version: string | null;
+  acceptedAt: string | null;
+} | null;
+
 export type User = {
   id?: string | number;
   role: UserRole;
   patientId?: string;
   name?: string;
   email?: string;
+  privacyPolicy?: PrivacyAcceptance;
 } | null;
 
 type Ctx = {
@@ -199,6 +205,8 @@ type Ctx = {
   // Staff
   loginStaff: (email: string, password: string) => Promise<{ role: string }>;
   logout: () => void;
+  // Lets components (e.g. PrivacyGate) update the cached user without re-login.
+  updateUser: (patch: Partial<NonNullable<User>>) => void;
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/"; // note trailing slash
@@ -379,8 +387,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handleLogout(true);
   }
 
+  function updateUser(patch: Partial<NonNullable<User>>) {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch } as NonNullable<User>;
+      try {
+        localStorage.setItem("user", JSON.stringify(next));
+      } catch { }
+      return next;
+    });
+  }
+
   const value = useMemo(
-    () => ({ user, token, hydrated, registerPatient, loginPatient, loginStaff, logout }),
+    () => ({ user, token, hydrated, registerPatient, loginPatient, loginStaff, logout, updateUser }),
     [user, token, hydrated]
   );
 

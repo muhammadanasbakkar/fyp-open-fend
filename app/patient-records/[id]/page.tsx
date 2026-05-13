@@ -30,6 +30,21 @@ type NoteComment = {
   createdAt?: string;
 };
 
+type NoteHistory = {
+  presentingComplaint?: string;
+  medical?: string;
+  psychological?: string;
+  family?: string;
+  education?: string;
+  social?: string;
+  orientation?: string;
+  behaviorDuringSession?: string;
+  possibleAddictions?: string;
+  familyPsychopathology?: string;
+  supportiveFactors?: string;
+  addictionPsychosomatic?: string;
+};
+
 type SoapNote = {
   _id: string;
   author?: { _id: string; name?: string; role?: string } | string;
@@ -41,6 +56,9 @@ type SoapNote = {
   plan?: string;
 
   additionalNotes?: string;
+
+  // Patient history captured during the session.
+  history?: NoteHistory;
 
   // legacy fallback
   body?: string;
@@ -299,6 +317,44 @@ function PatientRecordInner() {
   const [plan, setPlan] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
 
+  // ── Patient history (saved alongside each SOAP note) ─────────────────────
+  // All optional. The whole panel is collapsible because most subsequent
+  // sessions won't need to fill every field.
+  type HistoryState = {
+    presentingComplaint: string;
+    medical: string;
+    psychological: string;
+    family: string;
+    education: string;
+    social: string;
+    orientation: string;
+    behaviorDuringSession: string;
+    possibleAddictions: string;
+    familyPsychopathology: string;
+    supportiveFactors: string;
+    addictionPsychosomatic: string;
+  };
+  const EMPTY_HISTORY: HistoryState = {
+    presentingComplaint: "",
+    medical: "",
+    psychological: "",
+    family: "",
+    education: "",
+    social: "",
+    orientation: "",
+    behaviorDuringSession: "",
+    possibleAddictions: "",
+    familyPsychopathology: "",
+    supportiveFactors: "",
+    addictionPsychosomatic: "",
+  };
+  const [history, setHistory] = useState<HistoryState>(EMPTY_HISTORY);
+  const [showHistory, setShowHistory] = useState(false);
+  function updateHistory(patch: Partial<HistoryState>) {
+    setHistory((prev) => ({ ...prev, ...patch }));
+  }
+  const historyHasContent = Object.values(history).some((v) => v && v.trim());
+
   const [autoStructure, setAutoStructure] = useState(true);
   const [showStructured, setShowStructured] = useState(true);
 
@@ -321,6 +377,18 @@ function PatientRecordInner() {
     setPlan(n.plan || "");
     setAdditionalNotes(n.additionalNotes || "");
     setNoteBody(n.body || "");
+    // Hydrate history so the user is editing the stored values, not a blank.
+    const h = (n as any).history || {};
+    const hydrated: HistoryState = {
+      ...EMPTY_HISTORY,
+      ...Object.fromEntries(
+        Object.keys(EMPTY_HISTORY).map((k) => [k, String(h[k] || "")])
+      ),
+    } as HistoryState;
+    setHistory(hydrated);
+    // Don't auto-open the modal on edit — the "Patient history ✓" trigger
+    // already indicates there's saved content.
+    setShowHistory(false);
     setErr("");
     setMsg("");
     if (typeof window !== "undefined") {
@@ -336,6 +404,8 @@ function PatientRecordInner() {
     setPlan("");
     setAdditionalNotes("");
     setNoteBody("");
+    setHistory(EMPTY_HISTORY);
+    setShowHistory(false);
   }
 
   // Note: records are auto-shared with the therapist's supervisor — no opt-in step.
@@ -538,9 +608,10 @@ function PatientRecordInner() {
       objective.trim() ||
       assessment.trim() ||
       plan.trim() ||
-      additionalNotes.trim()
+      additionalNotes.trim() ||
+      historyHasContent
     );
-  }, [noteBody, subjective, objective, assessment, plan, additionalNotes]);
+  }, [noteBody, subjective, objective, assessment, plan, additionalNotes, historyHasContent]);
 
   async function addNote() {
     if (!patientId) return;
@@ -569,6 +640,10 @@ function PatientRecordInner() {
         // legacy mirror fields (the backend accepts both new + legacy keys)
         payload.diagnosis = assessment.trim();
         payload.treatment = plan.trim();
+        // Send the full history object so cleared fields actually clear.
+        payload.history = Object.fromEntries(
+          Object.entries(history).map(([k, v]) => [k, (v || "").trim()])
+        );
       } else {
         if (subjective.trim()) payload.subjective = subjective.trim();
         if (objective.trim()) payload.objective = objective.trim();
@@ -585,6 +660,14 @@ function PatientRecordInner() {
         // payload.activity = "";
 
         if (noteBody.trim()) payload.body = noteBody.trim(); // scratch / legacy free-text
+
+        // Only send populated history fields on create to keep the payload tight.
+        const hPayload: Record<string, string> = {};
+        for (const [k, v] of Object.entries(history)) {
+          const trimmed = (v || "").trim();
+          if (trimmed) hPayload[k] = trimmed;
+        }
+        if (Object.keys(hPayload).length) payload.history = hPayload;
       }
 
       const url = isEdit
@@ -606,6 +689,8 @@ function PatientRecordInner() {
       setAssessment("");
       setPlan("");
       setAdditionalNotes("");
+      setHistory(EMPTY_HISTORY);
+      setShowHistory(false);
       setEditingNoteId(null);
 
       setMsg(isEdit ? "SOAP note updated." : "SOAP note added.");
@@ -734,6 +819,24 @@ function PatientRecordInner() {
                 </span>
               )}
             </div>
+
+            {/* Patient history trigger — opens the modal */}
+            <button
+              type="button"
+              onClick={() => setShowHistory(true)}
+              className={[
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+                historyHasContent
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
+              ].join(" ")}
+              title="Add or edit the patient's history alongside this note"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5m-9-12h3.75M9 3.75H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              {historyHasContent ? "Patient history ✓" : "+ Patient history"}
+            </button>
           </div>
 
           <div className="p-5">
@@ -965,6 +1068,7 @@ function PatientRecordInner() {
                     setAssessment("");
                     setPlan("");
                     setAdditionalNotes("");
+                    setHistory(EMPTY_HISTORY);
                   }}
                   disabled={adding}
                 >
@@ -979,6 +1083,98 @@ function PatientRecordInner() {
               </p>
             )}
           </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Patient history modal ─────────────────────────────────────────────
+          Edits the same `history` state used by the form. Closing without
+          saving the SOAP note keeps the entries in memory — they'll be sent
+          alongside whatever's in the SOAP fields when the user hits Save. */}
+      {showHistory && canWrite && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 backdrop-blur-sm sm:items-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowHistory(false); }}
+        >
+          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gradient-to-r from-violet-500 to-[#4b7eff] px-5 py-4 text-white">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5m-9-12h3.75M9 3.75H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </span>
+                <div>
+                  <p className="text-sm font-semibold leading-tight">Patient history</p>
+                  <p className="text-[11px] text-white/80">
+                    Every field is optional — capture what's relevant for this session.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistory(false)}
+                aria-label="Close patient history"
+                className="rounded-lg p-1.5 hover:bg-white/15"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([
+                  ["presentingComplaint",    "Presenting complaint",          "Why is the patient here today? Their own words.",            "violet"],
+                  ["medical",                "Medical history",               "Major illnesses, surgeries, current medications, allergies.",  "blue"],
+                  ["psychological",          "Psychological / psychiatric",   "Prior diagnoses, therapy, hospitalizations.",                  "violet"],
+                  ["family",                 "Family history",                "Family structure, relationships, significant events.",         "amber"],
+                  ["education",              "Education history",             "Schooling, performance, current status.",                       "blue"],
+                  ["social",                 "Social history",                "Living situation, work, peers, lifestyle.",                     "emerald"],
+                  ["orientation",            "Orientation",                   "Time / place / person / situation awareness.",                  "gray"],
+                  ["behaviorDuringSession",  "Behavior during session",       "Appearance, eye contact, affect, engagement.",                  "gray"],
+                  ["possibleAddictions",     "Possible addictions",           "Substance, behavioural — what's observed or reported.",        "amber"],
+                  ["familyPsychopathology",  "Family psychopathology",        "Mental illness in family, hereditary patterns.",                "violet"],
+                  ["supportiveFactors",      "Supportive factors",            "Strengths, support network, protective factors.",               "emerald"],
+                  ["addictionPsychosomatic", "Addiction & psychosomatic",     "Addiction-related symptoms and somatic complaints.",            "amber"],
+                ] as const).map(([key, label, hint, tone]) => (
+                  <RichField
+                    key={key}
+                    label={label}
+                    hint={hint}
+                    tagColor={tone as any}
+                    value={history[key as keyof HistoryState]}
+                    onChange={(v) => updateHistory({ [key]: v } as Partial<HistoryState>)}
+                    rows={3}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setHistory(EMPTY_HISTORY)}
+                disabled={!historyHasContent}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              >
+                Clear history
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowHistory(false)}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#3a5bef] to-[#4b7eff] px-4 py-2 text-sm font-bold text-white shadow-sm hover:brightness-105 active:scale-[.98]"
+              >
+                Done
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1079,6 +1275,9 @@ function PatientRecordInner() {
                           dim
                         />
                       )}
+
+                      {/* Patient history captured during this session */}
+                      <HistoryReadout history={n.history} />
                     </div>
                   ) : (
                     <div
@@ -1551,6 +1750,56 @@ function SoapBlock({
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
+  );
+}
+
+// Renders the patient-history subdoc inside the read view of a SOAP note.
+// Only shows fields that have content — so newer-style notes look clean and
+// older notes (no history at all) render nothing.
+function HistoryReadout({ history }: { history?: NoteHistory }) {
+  if (!history) return null;
+  const ROWS: { key: keyof NoteHistory; label: string }[] = [
+    { key: "presentingComplaint",    label: "Presenting complaint" },
+    { key: "medical",                label: "Medical history" },
+    { key: "psychological",          label: "Psychological / psychiatric" },
+    { key: "family",                 label: "Family history" },
+    { key: "education",              label: "Education history" },
+    { key: "social",                 label: "Social history" },
+    { key: "orientation",            label: "Orientation" },
+    { key: "behaviorDuringSession",  label: "Behavior during session" },
+    { key: "possibleAddictions",     label: "Possible addictions" },
+    { key: "familyPsychopathology",  label: "Family psychopathology" },
+    { key: "supportiveFactors",      label: "Supportive factors" },
+    { key: "addictionPsychosomatic", label: "Addiction & psychosomatic" },
+  ];
+  const visible = ROWS.filter((r) => (history[r.key] || "").toString().trim());
+  if (!visible.length) return null;
+
+  return (
+    <details className="mt-2 rounded-xl border border-violet-100 bg-violet-50/40 px-3 py-2">
+      <summary className="cursor-pointer list-none">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-700">
+          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5" />
+          </svg>
+          Patient history
+          <span className="ml-1 rounded-full bg-violet-200/70 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
+            {visible.length}
+          </span>
+        </span>
+      </summary>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        {visible.map((r) => (
+          <div key={r.key} className="rounded-lg bg-white/70 p-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">{r.label}</p>
+            <div
+              className="rich-content mt-0.5 text-xs text-gray-800"
+              dangerouslySetInnerHTML={{ __html: renderNoteHtml(history[r.key]) }}
+            />
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 

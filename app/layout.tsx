@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/lib/auth";
 import { Metadata, Viewport } from "next";
 import TherapistChatbot from "@/components/TherapistChatbot";
+import PrivacyGate from "@/components/PrivacyGate";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://therakonnect.com";
 
@@ -83,6 +84,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <main className="flex-1">{children}</main>
           <TherapistChatbot />
+          {/* Globally blocks access until legacy users accept the current
+              privacy policy version. No-op for already-accepted users. */}
+          <PrivacyGate />
         </AuthProvider>
         <Footer />
       </body>
