@@ -6,6 +6,12 @@
   --brand-teal: #0f766e;
 }
 
+/* Gentle vertical drift used by the homepage hero's floating chips. */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 /* ── Rich-text editor (RichField) styling ─────────────────────────────────
    Keeps the content rendered both inside the editor AND in the read view
    visually consistent. Targets `.rich-editor` (live editor) and

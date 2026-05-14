@@ -128,6 +128,10 @@ function BookPageInner() {
 
   const [emailAddr, setEmailAddr] = useState("");
   const [expandTherapistGrid, setExpandTherapistGrid] = useState(false);
+  // Polish: collapse the optional Notes block + hide the "Pick another date"
+  // calendar behind a small toggle so the booking flow stays focused.
+  const [showNotes, setShowNotes] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // ✅ FIX: Single slot-fetch trigger counter — incrementing this forces a re-fetch
   // without depending on stale state values
@@ -503,14 +507,13 @@ function BookPageInner() {
       else evening.push(s);
     });
     return [
-      { label: "Morning", icon: "🌅", slots: morning },
-      { label: "Afternoon", icon: "☀️", slots: afternoon },
-      { label: "Evening", icon: "🌆", slots: evening },
+      { label: "Morning", dot: "bg-amber-400", slots: morning },
+      { label: "Afternoon", dot: "bg-orange-400", slots: afternoon },
+      { label: "Evening", dot: "bg-indigo-400", slots: evening },
     ].filter((g) => g.slots.length > 0);
   }, [slots]);
 
   return (
-    // <div className="min-h-screen overflow-x-hidden bg-gradient-to-b from-[#eef2ff] to-[#f8faff]">
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-gradient-to-b from-[#eef2ff] to-[#f8faff]">
       {/* ── Hero Header ── */}
       <div className="bg-gradient-to-br from-[#3a5bef] via-[#4b7eff] to-[#7c3aed] px-4 pb-12 pt-6 sm:px-6 sm:pb-14 sm:pt-8">
@@ -561,7 +564,6 @@ function BookPageInner() {
         </div>
       </div>
 
-      {/* <div className="mx-auto max-w-6xl space-y-4 px-4 pb-28 sm:space-y-5 sm:px-6 xl:pb-16"> */}
       <div className="mx-auto w-full max-w-6xl space-y-4 px-3 pb-32 sm:space-y-5 sm:px-6 xl:pb-16">
         {/* ── Staff Tab Switcher (therapist / receptionist only) ── */}
         {isStaff && (
@@ -681,10 +683,8 @@ function BookPageInner() {
         )}
 
         {/* ── Main grid ── */}
-        {/* <div className="grid gap-5 xl:grid-cols-[1fr_320px] xl:items-start"> */}
         <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
           {/* ── Left column ── */}
-          {/* <div className="space-y-5"> */}
           <div className="min-w-0 space-y-4 sm:space-y-5">
             {/* Patient Info section — behalf mode only */}
             {bookingMode === "behalf" && (
@@ -1053,26 +1053,24 @@ function BookPageInner() {
                 </div>
                 <div className="space-y-5 p-4 sm:p-5">
 
-                  {/* Quick day navigation */}
+                  {/* Quick day navigation — 7-day strip with a togglable date
+                      picker for picking dates further out. Replaces the
+                      always-on native input that doubled the controls. */}
                   <div>
                     <div className="mb-2.5 flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Quick Select</p>
-                      {/* Date picker — sits inline on sm+, drops onto its own line on phones below */}
-                      <div className="hidden shrink-0 sm:block">
-                        <Input
-                          type="date"
-                          value={dayjs(startLocal).format("YYYY-MM-DD")}
-                          onChange={(e) => {
-                            const d = dayjs(e.target.value);
-                            const cur = dayjs(startLocal);
-                            setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
-                          }}
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowDatePicker((v) => !v)}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:text-[#4b7eff] transition-colors"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25" />
+                        </svg>
+                        {showDatePicker ? "Hide calendar" : "Pick another date"}
+                      </button>
                     </div>
-                    {/* <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"> */}
                     <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
-                      {/* {Array.from({ length: 8 }, (_, i) => { */}
                       {Array.from({ length: 7 }, (_, i) => {
                         const d = dayjs().add(i, "day");
                         const isActive = d.format("YYYY-MM-DD") === dayjs(startLocal).format("YYYY-MM-DD");
@@ -1086,7 +1084,6 @@ function BookPageInner() {
                             }}
                             className={[
                               "flex min-w-0 flex-col items-center rounded-xl border-2 px-2 py-2 text-center transition-all",
-                              // "flex shrink-0 flex-col items-center rounded-xl border-2 px-3 py-2 text-center transition-all",
                               isActive
                                 ? "border-[#4b7eff] bg-[#4b7eff] text-white shadow-md"
                                 : "border-gray-200 bg-white text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff]",
@@ -1101,18 +1098,19 @@ function BookPageInner() {
                         );
                       })}
                     </div>
-                    {/* Phone-only: full-width date picker below the strip so the strip itself can scroll cleanly */}
-                    <div className="mt-2 sm:hidden">
-                      <Input
-                        type="date"
-                        value={dayjs(startLocal).format("YYYY-MM-DD")}
-                        onChange={(e) => {
-                          const d = dayjs(e.target.value);
-                          const cur = dayjs(startLocal);
-                          setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
-                        }}
-                      />
-                    </div>
+                    {showDatePicker && (
+                      <div className="mt-3">
+                        <Input
+                          type="date"
+                          value={dayjs(startLocal).format("YYYY-MM-DD")}
+                          onChange={(e) => {
+                            const d = dayjs(e.target.value);
+                            const cur = dayjs(startLocal);
+                            setStartLocal(d.hour(cur.hour()).minute(cur.minute()).format("YYYY-MM-DDTHH:mm"));
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Slot grid */}
@@ -1135,24 +1133,21 @@ function BookPageInner() {
                     </div>
                     {loadingSlots ? (
                       <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6">
-                        {/* // <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6"> */}
                         {Array.from({ length: 12 }).map((_, i) => (
                           <div key={i} className="h-12 animate-pulse rounded-xl bg-gray-100" />
                         ))}
                       </div>
                     ) : groupedSlots.length > 0 ? (
-                      // <div className="space-y-5">
                       <div className="min-w-0 space-y-4 sm:space-y-5">
                         {groupedSlots.map((group) => (
                           <div key={group.label}>
                             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                              <span aria-hidden>{group.icon}</span>
+                              <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${group.dot}`} />
                               {group.label}
                               <span className="ml-1 rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-500">
                                 {group.slots.length}
                               </span>
                             </p>
-                            {/* <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"> */}
                             <div className="grid grid-cols-3 gap-2 min-[380px]:grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                               {group.slots.map((s) => {
                                 const isSel = selectedSlot?.start === s.start && selectedSlot?.end === s.end;
@@ -1312,32 +1307,61 @@ function BookPageInner() {
               </section>
             )}
 
-            {/* Notes (optional) */}
+            {/* Notes (optional) — collapsed by default so it doesn't push
+                the booking CTA below the fold for users who don't need it. */}
             <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
-              <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 sm:px-5 sm:py-4">
+              <button
+                type="button"
+                onClick={() => setShowNotes((v) => !v)}
+                aria-expanded={showNotes}
+                className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50 sm:px-5 sm:py-4"
+              >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500">✎</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900">Notes &amp; Details</p>
-                  <p className="text-xs text-gray-500">Optional information for your therapist.</p>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-gray-900">
+                    Notes &amp; Details
+                    {reason.trim() && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+                        added
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-xs text-gray-500">
+                    {showNotes ? "Hide" : "Optional"} information for your therapist.
+                  </span>
+                </span>
+                <svg
+                  className={[
+                    "h-4 w-4 text-gray-400 transition-transform",
+                    showNotes ? "rotate-180" : "",
+                  ].join(" ")}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.2}
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showNotes && (
+                <div className="p-4 sm:p-5">
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Reason for visit <span className="font-normal normal-case text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    className="w-full resize-none rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm transition-colors focus:border-[#4b7eff] focus:outline-none"
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Brief note for your therapist…"
+                  />
                 </div>
-              </div>
-              <div className="p-4 sm:p-5">
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Reason for visit <span className="font-normal normal-case text-gray-400">(optional)</span>
-                </label>
-                <textarea
-                  className="w-full resize-none rounded-xl border-2 border-gray-200 px-3 py-2.5 text-sm transition-colors focus:border-[#4b7eff] focus:outline-none"
-                  rows={3}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Brief note for your therapist…"
-                />
-              </div>
+              )}
             </section>
           </div>
 
           {/* ── Right sidebar ── */}
-          {/* <aside className="space-y-5 xl:sticky xl:top-6"> */}
           <aside className="hidden space-y-5 xl:sticky xl:top-6 xl:block">
             {/* Contact & Verify + CTA */}
             <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
@@ -1520,7 +1544,6 @@ function BookPageInner() {
 
       {/* Mobile-only sticky CTA bar — keeps the primary action one-tap away on
           phones where the right sidebar lives below the page fold. */}
-      {/* <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur xl:hidden"> */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur sm:px-4 xl:hidden">
         {selectedSlot && (
           <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">

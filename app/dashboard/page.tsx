@@ -176,8 +176,16 @@ const ROLE_META: Record<string, { label: string; color: string; bg: string }> = 
 
 // ─── appointment fetcher hook ─────────────────────────────────────────────────
 
+type ApptStats = {
+  upcoming: number;
+  total: number;
+  completed: number;
+  pending: number;
+  nextSession: any | null;
+};
+
 function useAppointmentStats(token: string | null) {
-  const [stats, setStats] = useState<{ upcoming: number; total: number } | null>(null);
+  const [stats, setStats] = useState<ApptStats | null>(null);
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -186,9 +194,19 @@ function useAppointmentStats(token: string | null) {
           headers: authHeader(token) as HeadersInit,
         });
         const list: any[] = Array.isArray(data) ? data : data?.appointments || [];
-        const now = new Date();
-        const upcoming = list.filter((a: any) => new Date(a.start || a.date) > now).length;
-        setStats({ upcoming, total: list.length });
+        const now = Date.now();
+        const upcomingAppts = list
+          .filter((a: any) => +new Date(a.start || a.date) > now)
+          .sort((a: any, b: any) => +new Date(a.start || a.date) - +new Date(b.start || b.date));
+        const completed = list.filter((a: any) => a.status === "completed").length;
+        const pending = list.filter((a: any) => a.status === "pending").length;
+        setStats({
+          upcoming: upcomingAppts.length,
+          total: list.length,
+          completed,
+          pending,
+          nextSession: upcomingAppts[0] || null,
+        });
       } catch { /* silent */ }
     })();
   }, [token]);
@@ -251,30 +269,142 @@ function HeroBanner({
 function PatientDashboard({ user, token }: { user: any; token: string | null }) {
   const apptStats = useAppointmentStats(token);
   const meta = ROLE_META.patient;
-
+  const next = apptStats?.nextSession;
+  const therapistName =
+    typeof next?.therapist === "object" ? next?.therapist?.name : next?.therapist;
+  const fmt = (d: any) =>
+    d
+      ? new Date(d).toLocaleString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "—";
 
   return (
     <div className="space-y-8">
       <HeroBanner user={user} roleMeta={meta} />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* Next session highlight — only when one exists. Otherwise show an
+          empty-state CTA encouraging a booking. */}
+      {apptStats === null ? (
+        <div className="h-32 rounded-2xl bg-gray-100 animate-pulse" />
+      ) : next ? (
+        <div className="overflow-hidden rounded-2xl border border-[#0f766e]/20 bg-gradient-to-br from-[#0f766e]/5 via-white to-white shadow-sm">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3 min-w-0">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f766e]/10 text-[#0f766e]">
+                {Icons.calendar}
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0f766e]">
+                  Your next session
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-gray-900">
+                  {fmt(next.start || next.date)}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-gray-600">
+                  with <span className="font-medium text-gray-800">{therapistName || "—"}</span>
+                  {next.mode ? (
+                    <span className="ml-1 inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                      {next.mode === "online" ? "Online" : "In person"}
+                    </span>
+                  ) : null}
+                  {next.status ? (
+                    <span
+                      className={`ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                        next.status === "confirmed"
+                          ? "bg-green-50 text-green-700"
+                          : next.status === "pending"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {next.status}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {next.mode === "online" && next.meetingLink ? (
+                <a
+                  href={next.meetingLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f766e] px-4 py-2 text-xs font-semibold text-white hover:brightness-110 transition-all"
+                >
+                  Join video session
+                </a>
+              ) : null}
+              <Link
+                href="/appointments/my"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                View details
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-[#4b7eff]/20 bg-gradient-to-br from-[#4b7eff]/5 to-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">
+                No upcoming sessions yet
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Browse our therapists and book your first session in minutes.
+              </p>
+            </div>
+            <Link
+              href="/appointments/book"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 transition-all"
+            >
+              {Icons.plus}
+              Book your first session
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Stats — three real numeric metrics, no navigation tiles. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {apptStats === null ? (
-          [1, 2, 3, 4].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3].map((i) => <StatSkeleton key={i} />)
         ) : (
           <>
-            <StatCard label="Upcoming" value={apptStats.upcoming} sub="sessions booked" icon={Icons.calendar} color={meta.color} />
-            <StatCard label="Total sessions" value={apptStats.total} sub="all time" icon={Icons.chart} color="#0f766e" />
-            <StatCard label="Therapists" value="Browse" sub="find the right fit" icon={Icons.search} color="#7c3aed" />
-            <StatCard label="Records" value="View" sub="your session notes" icon={Icons.notes} color="#d97706" />
+            <StatCard
+              label="Upcoming"
+              value={apptStats.upcoming}
+              sub="sessions booked"
+              icon={Icons.calendar}
+              color={meta.color}
+            />
+            <StatCard
+              label="Completed"
+              value={apptStats.completed}
+              sub="past sessions"
+              icon={Icons.chart}
+              color="#0f766e"
+            />
+            <StatCard
+              label="Total"
+              value={apptStats.total}
+              sub="all time"
+              icon={Icons.list}
+              color="#4b7eff"
+            />
           </>
         )}
       </div>
 
-      {/* Quick actions */}
+      {/* Quick actions — trimmed to four daily destinations. */}
       <div>
         <SectionHeader>Quick actions</SectionHeader>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <ActionCard
             title="Book a session"
             desc="Find an available therapist and secure a slot in minutes."
@@ -290,61 +420,21 @@ function PatientDashboard({ user, token }: { user: any; token: string | null }) 
             accent="#0f766e"
           />
           <ActionCard
-            title="Browse therapists"
-            desc="Explore therapist profiles, specializations, and availability."
-            href="/appointments/book"
-            icon={Icons.search}
+            title="Resources"
+            desc="Guides, FAQs, and articles to help you on your journey."
+            href="/resources"
+            icon={Icons.list}
             accent="#7c3aed"
           />
-          {meta.label === "Therapist" &&
-            <>
-              <ActionCard
-                title="Patient records"
-                desc="Access your session notes and treatment history."
-                href="/patient-records"
-                icon={Icons.notes}
-                accent="#d97706"
-              />
-              <ActionCard
-                title="Resources"
-                desc="Guides, FAQs, and help articles for using TheraKonnect."
-                href="/resources"
-                icon={Icons.list}
-                accent="#64748b"
-              />
-            </>
-          }
           <ActionCard
             title="Account settings"
-            desc="Update your contact info, preferences, and profile."
+            desc="Update your contact info, emergency contact, and profile."
             href="/settings/profile"
             icon={Icons.settings}
             accent="#64748b"
           />
         </div>
       </div>
-
-      {/* Info banner */}
-      {/* <div className="rounded-2xl border border-[#4b7eff]/20 bg-[#4b7eff]/5 p-5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4b7eff]/15 text-[#4b7eff]">
-            {Icons.star}
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Find the right therapist for you</h3>
-            <p className="mt-1 text-xs text-gray-600 max-w-xl">
-              TheraKonnect connects you with qualified therapists in Pakistan.
-              Browse by specialization, book a slot, and start your journey toward better mental health.
-            </p>
-            <Link
-              href="/appointments/book"
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6aa7ff] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:brightness-105 transition-all"
-            >
-              Browse therapists →
-            </Link>
-          </div>
-        </div>
-      </div> */}
     </div>
   );
 }
