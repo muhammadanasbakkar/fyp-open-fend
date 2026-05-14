@@ -350,10 +350,21 @@ function PatientRecordInner() {
   };
   const [history, setHistory] = useState<HistoryState>(EMPTY_HISTORY);
   const [showHistory, setShowHistory] = useState(false);
+  // Collapsed/expanded state for the consolidated patient history overview
+  // card. Default expanded so therapists land on the data; can be folded
+  // away to reclaim vertical space.
+  const [historyOverviewOpen, setHistoryOverviewOpen] = useState(true);
+  // Tracks which edit session has already been seeded with the patient's
+  // latest aggregated history. Prevents re-seeding (which would wipe
+  // in-progress edits) when the same modal is reopened mid-session.
+  const historySeededForRef = useRef<string | null>(null);
   function updateHistory(patch: Partial<HistoryState>) {
     setHistory((prev) => ({ ...prev, ...patch }));
   }
-  const historyHasContent = Object.values(history).some((v) => v && v.trim());
+  const historyHasContent =
+    !!history &&
+    typeof history === "object" &&
+    Object.values(history).some((v) => typeof v === "string" && v.trim().length > 0);
 
   const [autoStructure, setAutoStructure] = useState(true);
   const [showStructured, setShowStructured] = useState(true);
@@ -369,6 +380,7 @@ function PatientRecordInner() {
   const canWrite = role === "therapist";
 
   function startEditNote(n: SoapNote) {
+    console.log(n,"1111")
     if (!n._id) return;
     setEditingNoteId(String(n._id));
     setSubjective(n.subjective || "");
@@ -406,6 +418,7 @@ function PatientRecordInner() {
     setNoteBody("");
     setHistory(EMPTY_HISTORY);
     setShowHistory(false);
+    historySeededForRef.current = null;
   }
 
   // Note: records are auto-shared with the therapist's supervisor — no opt-in step.
@@ -507,12 +520,12 @@ function PatientRecordInner() {
         const id =
           n?._id ?? n?.id ?? n?.noteId ?? `${n?.createdAt ?? n?.date ?? "no-date"}-${i}`;
         const created = n?.createdAt ?? n?.date ?? new Date().toISOString();
-
         // Prefer SOAP if present, else map legacy -> SOAP for display.
         const subj = (n?.subjective ?? "").trim();
         const obj = (n?.objective ?? "").trim();
         const assess = (n?.assessment ?? n?.diagnosis ?? "").trim();
         const plan = (n?.plan ?? n?.treatment ?? n?.activity ?? "").trim();
+        const history = n?.history && typeof n.history === "object" ? n.history : {};
 
         return {
           _id: String(id),
@@ -520,6 +533,7 @@ function PatientRecordInner() {
           subjective: subj || undefined,
           objective: obj || undefined,
           assessment: assess || undefined,
+          history: history && Object.keys(history).length > 0 ? history : undefined,
           plan: plan || undefined,
           additionalNotes: (n?.additionalNotes ?? "").trim() || undefined,
 
@@ -556,7 +570,7 @@ function PatientRecordInner() {
         (Array.isArray(res?.notes) ? res.notes : null) ??
         (Array.isArray(res?.record?.notes) ? res.record.notes : []) ??
         [];
-
+console.log(res,"3333")
       setPatient(p);
       setNotes(normalizeNotes(rawNotes));
     } catch (e: any) {
@@ -692,6 +706,7 @@ function PatientRecordInner() {
       setHistory(EMPTY_HISTORY);
       setShowHistory(false);
       setEditingNoteId(null);
+      historySeededForRef.current = null;
 
       setMsg(isEdit ? "SOAP note updated." : "SOAP note added.");
       await load();
@@ -713,6 +728,50 @@ function PatientRecordInner() {
       return d !== 0 ? d : a._i - b._i;
     });
   }, [notes]);
+
+  // Latest known value of each patient-history field across all notes.
+  // `sortedNotes` is desc by createdAt, so the first note carrying a value for
+  // a given field is the most recent capture of that field.
+  const HISTORY_FIELDS: { key: keyof NoteHistory; label: string }[] = [
+    { key: "presentingComplaint",    label: "Presenting complaint" },
+    { key: "medical",                label: "Medical history" },
+    { key: "psychological",          label: "Psychological / psychiatric" },
+    { key: "family",                 label: "Family history" },
+    { key: "education",              label: "Education history" },
+    { key: "social",                 label: "Social history" },
+    { key: "orientation",            label: "Orientation" },
+    { key: "behaviorDuringSession",  label: "Behavior during session" },
+    { key: "possibleAddictions",     label: "Possible addictions" },
+    { key: "familyPsychopathology",  label: "Family psychopathology" },
+    { key: "supportiveFactors",      label: "Supportive factors" },
+    { key: "addictionPsychosomatic", label: "Addiction & psychosomatic" },
+  ];
+
+  const mergedHistory = useMemo(() => {
+    const out: { key: keyof NoteHistory; label: string; value: string; from: SoapNote }[] = [];
+    for (const { key, label } of HISTORY_FIELDS) {
+      for (const n of sortedNotes) {
+        const v = String((n.history as any)?.[key] || "").trim();
+        if (v) {
+          out.push({ key, label, value: v, from: n });
+          break;
+        }
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedNotes]);
+
+  // Most recent note that already carries any history — used as the edit target
+  // when the therapist clicks "Edit" on the consolidated history card.
+  const noteWithLatestHistory = useMemo(() => {
+    return (
+      sortedNotes.find((n) => {
+        const h = n.history || ({} as any);
+        return Object.values(h).some((v) => String(v || "").trim());
+      }) || null
+    );
+  }, [sortedNotes]);
 
   const displayName = patient?.name || patient?.email || patient?.phone || "Patient";
   const ptCode =
@@ -820,22 +879,59 @@ function PatientRecordInner() {
               )}
             </div>
 
-            {/* Patient history trigger — opens the modal */}
+            {/* Patient history trigger — opens the modal.
+                In edit mode this is always an "Edit" affordance regardless of
+                whether the saved note already had history attached.
+                If the current history state is empty but the patient has
+                history captured on other notes, seed the form with the
+                aggregated latest values so the therapist edits the patient's
+                known history, not a blank slate. */}
             <button
               type="button"
-              onClick={() => setShowHistory(true)}
+              onClick={() => {
+                // Identify the current "session": editing an existing note
+                // uses its id, creating a new note uses the sentinel "new".
+                // We only seed the modal once per session so subsequent
+                // reopens preserve in-progress edits the therapist made.
+                const session = editingNoteId || "new";
+                const firstOpenThisSession = historySeededForRef.current !== session;
+
+                if (firstOpenThisSession && mergedHistory.length > 0) {
+                  const aggregated: HistoryState = { ...EMPTY_HISTORY };
+                  for (const row of mergedHistory) {
+                    (aggregated as any)[row.key] = row.value;
+                  }
+                  setHistory(aggregated);
+                }
+                historySeededForRef.current = session;
+                setShowHistory(true);
+              }}
               className={[
                 "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
-                historyHasContent
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
+                editingNoteId
+                  ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  : historyHasContent
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
               ].join(" ")}
-              title="Add or edit the patient's history alongside this note"
+              title={
+                editingNoteId
+                  ? "Edit the patient history attached to this note"
+                  : "Add or edit the patient's history alongside this note"
+              }
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5m-9-12h3.75M9 3.75H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                {editingNoteId ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5m-9-12h3.75M9 3.75H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                )}
               </svg>
-              {historyHasContent ? "Patient history ✓" : "+ Patient history"}
+              {editingNoteId
+                ? "Edit Patient history"
+                : historyHasContent
+                  ? "Patient history ✓"
+                  : "+ Patient history"}
             </button>
           </div>
 
@@ -1106,9 +1202,15 @@ function PatientRecordInner() {
                   </svg>
                 </span>
                 <div>
-                  <p className="text-sm font-semibold leading-tight">Patient history</p>
+                  <p className="text-sm font-semibold leading-tight">
+                    {editingNoteId || historyHasContent
+                      ? "Edit patient history"
+                      : "Add patient history"}
+                  </p>
                   <p className="text-[11px] text-white/80">
-                    Every field is optional — capture what's relevant for this session.
+                    {editingNoteId || historyHasContent
+                      ? "Update or refine what's been captured. Every field is optional."
+                      : "Every field is optional — capture what's relevant for this session."}
                   </p>
                 </div>
               </div>
@@ -1179,6 +1281,135 @@ function PatientRecordInner() {
         </div>
       )}
 
+      {/* ── Patient history overview ─────────────────────────────────────────
+          Aggregates the latest value of each history field across all notes
+          so a therapist can see the patient's history at a glance without
+          drilling into individual sessions. Edit jumps into the most recent
+          note carrying history (or the most recent note overall) so any
+          changes are saved against an existing session. */}
+      {!loading && (mergedHistory.length > 0 || canWrite) && (
+        <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/60 to-white p-5 shadow-sm">
+          <div className={`flex items-start justify-between gap-3 ${historyOverviewOpen ? "mb-3" : ""}`}>
+            <button
+              type="button"
+              onClick={() => setHistoryOverviewOpen((v) => !v)}
+              aria-expanded={historyOverviewOpen}
+              aria-controls="patient-history-overview-body"
+              className="group flex flex-1 items-start gap-3 text-left"
+              title={historyOverviewOpen ? "Collapse patient history" : "Expand patient history"}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5" />
+                </svg>
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  Patient history
+                  {mergedHistory.length > 0 && (
+                    <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">
+                      {mergedHistory.length}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block text-xs text-gray-500">
+                  {mergedHistory.length
+                    ? `Latest known values across ${sortedNotes.length} session${sortedNotes.length === 1 ? "" : "s"}.`
+                    : "No history captured yet."}
+                </span>
+              </span>
+              <svg
+                className={[
+                  "mt-1 h-4 w-4 shrink-0 text-violet-500 transition-transform",
+                  historyOverviewOpen ? "rotate-180" : "",
+                ].join(" ")}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {canWrite && (
+              <button
+                type="button"
+                onClick={() => {
+                  // Prefer editing the note that already has history; fall back
+                  // to the most recent note if none carry history yet.
+                  const target = noteWithLatestHistory || sortedNotes[0] || null;
+                  if (target) {
+                    startEditNote(target as any);
+                    // Override the per-note hydration with the aggregated
+                    // latest-known values — different fields may come from
+                    // different notes, and the card shows the aggregate, so
+                    // the modal should match what the therapist just saw.
+                    const aggregated: HistoryState = { ...EMPTY_HISTORY };
+                    for (const row of mergedHistory) {
+                      (aggregated as any)[row.key] = row.value;
+                    }
+                    setHistory(aggregated);
+                    setShowHistory(true);
+                  } else {
+                    // No notes at all — open the modal so the therapist can
+                    // start typing; saving will require adding a SOAP field too.
+                    setShowHistory(true);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-50 transition-colors"
+                title={
+                  noteWithLatestHistory
+                    ? "Edit the most recent session's history"
+                    : sortedNotes.length
+                      ? "Add history to the most recent session"
+                      : "Add patient history"
+                }
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                {mergedHistory.length ? "Edit history" : "Add history"}
+              </button>
+            )}
+          </div>
+
+          {historyOverviewOpen && (
+            <div id="patient-history-overview-body">
+              {mergedHistory.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-violet-200 bg-white/60 px-4 py-6 text-center text-xs text-violet-700/70">
+                  {canWrite
+                    ? "Capture presenting complaint, medical, family, social history and more — they will be saved alongside the session you choose."
+                    : "Your therapist has not recorded history for this patient yet."}
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {mergedHistory.map((row) => (
+                    <div
+                      key={row.key}
+                      className="rounded-xl border border-violet-100 bg-white p-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">
+                          {row.label}
+                        </p>
+                        <span className="text-[10px] text-gray-400">
+                          from {formatDate(row.from.createdAt)}
+                        </span>
+                      </div>
+                      <div
+                        className="rich-content mt-1 text-xs leading-relaxed text-gray-800"
+                        dangerouslySetInnerHTML={{ __html: renderNoteHtml(row.value) }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Notes list */}
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
@@ -1203,6 +1434,7 @@ function PatientRecordInner() {
         ) : (
           <div className="space-y-3">
             {sortedNotes.map((n, i) => {
+              console.log(n,"222")
               const S = (n.subjective || "").trim();
               const O = (n.objective || "").trim();
               const A = (n.assessment || "").trim();
@@ -1276,8 +1508,6 @@ function PatientRecordInner() {
                         />
                       )}
 
-                      {/* Patient history captured during this session */}
-                      <HistoryReadout history={n.history} />
                     </div>
                   ) : (
                     <div
@@ -1753,55 +1983,6 @@ function SoapBlock({
   );
 }
 
-// Renders the patient-history subdoc inside the read view of a SOAP note.
-// Only shows fields that have content — so newer-style notes look clean and
-// older notes (no history at all) render nothing.
-function HistoryReadout({ history }: { history?: NoteHistory }) {
-  if (!history) return null;
-  const ROWS: { key: keyof NoteHistory; label: string }[] = [
-    { key: "presentingComplaint",    label: "Presenting complaint" },
-    { key: "medical",                label: "Medical history" },
-    { key: "psychological",          label: "Psychological / psychiatric" },
-    { key: "family",                 label: "Family history" },
-    { key: "education",              label: "Education history" },
-    { key: "social",                 label: "Social history" },
-    { key: "orientation",            label: "Orientation" },
-    { key: "behaviorDuringSession",  label: "Behavior during session" },
-    { key: "possibleAddictions",     label: "Possible addictions" },
-    { key: "familyPsychopathology",  label: "Family psychopathology" },
-    { key: "supportiveFactors",      label: "Supportive factors" },
-    { key: "addictionPsychosomatic", label: "Addiction & psychosomatic" },
-  ];
-  const visible = ROWS.filter((r) => (history[r.key] || "").toString().trim());
-  if (!visible.length) return null;
-
-  return (
-    <details className="mt-2 rounded-xl border border-violet-100 bg-violet-50/40 px-3 py-2">
-      <summary className="cursor-pointer list-none">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-violet-700">
-          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3m3-4.5v4.5" />
-          </svg>
-          Patient history
-          <span className="ml-1 rounded-full bg-violet-200/70 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
-            {visible.length}
-          </span>
-        </span>
-      </summary>
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        {visible.map((r) => (
-          <div key={r.key} className="rounded-lg bg-white/70 p-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">{r.label}</p>
-            <div
-              className="rich-content mt-0.5 text-xs text-gray-800"
-              dangerouslySetInnerHTML={{ __html: renderNoteHtml(history[r.key]) }}
-            />
-          </div>
-        ))}
-      </div>
-    </details>
-  );
-}
 
 function formatDate(dt: string | Date) {
   const d = new Date(dt);

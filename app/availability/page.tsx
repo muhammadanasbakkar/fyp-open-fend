@@ -72,8 +72,52 @@ function Inner() {
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
   const [hospitalsErr, setHospitalsErr] = useState("");
 
+  // Monthly bulk-add state — signup-style days-of-week schedule.
+  // Each day independently: enabled + start + end.
+  type DaySched = { enabled: boolean; start: string; end: string };
+  type WeekSched = Record<number, DaySched>; // keyed 0..6 (Sun..Sat)
+  const EMPTY_WEEK: WeekSched = {
+    0: { enabled: false, start: "09:00", end: "17:00" },
+    1: { enabled: true,  start: "09:00", end: "17:00" },
+    2: { enabled: true,  start: "09:00", end: "17:00" },
+    3: { enabled: true,  start: "09:00", end: "17:00" },
+    4: { enabled: true,  start: "09:00", end: "17:00" },
+    5: { enabled: true,  start: "09:00", end: "17:00" },
+    6: { enabled: false, start: "09:00", end: "17:00" },
+  };
+  const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  const [mode, setMode] = useState<"slot" | "monthly">("slot");
+  const [bulkHospitalId, setBulkHospitalId] = useState<string>("");
+  const [bulkMonth, setBulkMonth] = useState(dayjs().startOf("month"));
+  const [week, setWeek] = useState<WeekSched>(EMPTY_WEEK);
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time";
   const grouped = useMemo(() => groupByDate(list), [list]);
+
+  function updateDay(dow: number, patch: Partial<DaySched>) {
+    setWeek((prev) => ({ ...prev, [dow]: { ...prev[dow], ...patch } }));
+  }
+  function copyMondayToWeekdays() {
+    const m = week[1];
+    setWeek((prev) => ({
+      ...prev,
+      2: { ...prev[2], ...m },
+      3: { ...prev[3], ...m },
+      4: { ...prev[4], ...m },
+      5: { ...prev[5], ...m },
+    }));
+  }
+  function clearWeek() {
+    setWeek((prev) => {
+      const next = { ...prev };
+      for (const k of Object.keys(next)) {
+        next[+k as 0|1|2|3|4|5|6] = { ...next[+k as 0|1|2|3|4|5|6], enabled: false };
+      }
+      return next;
+    });
+  }
 
   function setQuick(minutes: number) {
     const s = dayjs(start);
@@ -159,11 +203,124 @@ function Inner() {
       const arr = (res?.hospitals || []) as Hospital[];
       setHospitals(arr);
       if (!hospitalId && arr.length) setHospitalId(arr[0]?._id);
+      if (!bulkHospitalId && arr.length) setBulkHospitalId(arr[0]?._id);
     } catch (e: any) {
       setHospitalsErr(e.message || "Failed to load hospitals.");
     } finally {
       setHospitalsLoading(false);
     }
+  }
+
+  async function bulkCreate() {
+    setErr("");
+    setMsg("");
+
+    if (!token) {
+      setErr("Session expired. Please log in again.");
+      return;
+    }
+    if (!bulkHospitalId) {
+      setErr("Pick a clinic to apply the monthly schedule to.");
+      return;
+    }
+
+    // Collect enabled days with valid times.
+    const enabledDays: { dow: number; sh: number; sm: number; eh: number; em: number }[] = [];
+    for (const k of Object.keys(week)) {
+      const dow = +k;
+      const d = week[dow];
+      if (!d.enabled) continue;
+      const [sh, sm] = d.start.split(":").map(Number);
+      const [eh, em] = d.end.split(":").map(Number);
+      if (
+        !Number.isFinite(sh) || !Number.isFinite(sm) ||
+        !Number.isFinite(eh) || !Number.isFinite(em)
+      ) {
+        setErr(`${DAY_LABELS[dow]} has an invalid time.`);
+        return;
+      }
+      if ((eh * 60 + em) - (sh * 60 + sm) < 15) {
+        setErr(`${DAY_LABELS[dow]} window must be at least 15 minutes.`);
+        return;
+      }
+      enabledDays.push({ dow, sh, sm, eh, em });
+    }
+
+    if (enabledDays.length === 0) {
+      setErr("Enable at least one day with a time range.");
+      return;
+    }
+
+    // Build a slot for every occurrence of each enabled day in the month.
+    const monthStart = bulkMonth.startOf("month");
+    const daysInMonth = bulkMonth.daysInMonth();
+    const slots: { startISO: string; endISO: string; dayKey: string }[] = [];
+    for (let i = 0; i < daysInMonth; i++) {
+      const d = monthStart.add(i, "day");
+      const sched = enabledDays.find((x) => x.dow === d.day());
+      if (!sched) continue;
+      const s = d.hour(sched.sh).minute(sched.sm).second(0).millisecond(0);
+      const e = d.hour(sched.eh).minute(sched.em).second(0).millisecond(0);
+      slots.push({
+        startISO: s.toISOString(),
+        endISO: e.toISOString(),
+        dayKey: d.format("YYYY-MM-DD"),
+      });
+    }
+
+    if (!slots.length) {
+      setErr("No matching days in the selected month.");
+      return;
+    }
+
+    // Idempotent re-apply: skip slots that already exist at the same
+    // YYYY-MM-DD @ HH:mm for this hospital.
+    const existingKeys = new Set(
+      list
+        .filter((s) => {
+          const hid = s.hospital?._id || s.hospitalId || "";
+          return hid === bulkHospitalId;
+        })
+        .map((s) => `${dayjs(s.start).format("YYYY-MM-DD")}@${dayjs(s.start).format("HH:mm")}`)
+    );
+
+    setBulkLoading(true);
+    let created = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const slot of slots) {
+      const key = `${slot.dayKey}@${dayjs(slot.startISO).format("HH:mm")}`;
+      if (existingKeys.has(key)) {
+        skipped++;
+        continue;
+      }
+      try {
+        await api("api/availability", {
+          method: "POST",
+          headers: {
+            ...(authHeader(token) as HeadersInit),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            start: slot.startISO,
+            end: slot.endISO,
+            hospital: bulkHospitalId,
+          }),
+        });
+        created++;
+      } catch {
+        failed++;
+      }
+    }
+
+    setBulkLoading(false);
+    const parts: string[] = [];
+    if (created) parts.push(`${created} added`);
+    if (skipped) parts.push(`${skipped} already existed`);
+    if (failed) parts.push(`${failed} failed`);
+    setMsg(`Monthly schedule applied. ${parts.join(", ")}.`);
+    await loadAvailability();
   }
 
   useEffect(() => {
@@ -212,7 +369,202 @@ function Inner() {
           </div>
         </div>
 
+        {/* Mode toggle */}
+        <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setMode("slot")}
+            className={[
+              "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+              mode === "slot"
+                ? "bg-[var(--brand,#4b7eff)] text-white"
+                : "text-slate-600 hover:bg-slate-100",
+            ].join(" ")}
+          >
+            Single slot
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("monthly")}
+            className={[
+              "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+              mode === "monthly"
+                ? "bg-[var(--brand,#4b7eff)] text-white"
+                : "text-slate-600 hover:bg-slate-100",
+            ].join(" ")}
+          >
+            Weekly schedule · monthly
+          </button>
+        </div>
+
+        {/* Weekly schedule applied to a whole month */}
+        {mode === "monthly" && (
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm space-y-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Weekly schedule → applied to the whole month
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Just like signup: tick the days you work at this clinic and set
+                  the time. We&apos;ll create one availability window for every
+                  matching weekday in the chosen month.
+                </p>
+              </div>
+              <span className="rounded-full bg-slate-50 px-3 py-1 text-[11px] text-slate-500">
+                Minimum 15 minutes
+              </span>
+            </div>
+
+            {/* Hospital + month */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm text-slate-700">
+                  Hospital or clinic
+                </label>
+                <select
+                  value={bulkHospitalId}
+                  onChange={(e) => setBulkHospitalId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand,#4b7eff)] focus:outline-none focus:ring-2 focus:ring-[var(--brand,#4b7eff)]/40"
+                  disabled={hospitalsLoading || bulkLoading}
+                >
+                  {hospitals.length === 0 && <option value="">No hospitals</option>}
+                  {hospitals.map((h) => (
+                    <option key={h._id} value={h._id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-slate-700">Month</label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBulkMonth((m) => m.subtract(1, "month"))}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    aria-label="Previous month"
+                    disabled={bulkLoading}
+                  >
+                    ‹
+                  </button>
+                  <div className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-medium text-slate-900">
+                    {bulkMonth.format("MMMM YYYY")}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBulkMonth((m) => m.add(1, "month"))}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    aria-label="Next month"
+                    disabled={bulkLoading}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Days of week — signup style */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-slate-900">Working days & time</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={copyMondayToWeekdays}
+                    className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                    disabled={bulkLoading}
+                    title="Copy Monday's times to Tue–Fri"
+                  >
+                    Copy Mon → Fri
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearWeek}
+                    className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                    disabled={bulkLoading}
+                  >
+                    Clear all
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5, 6, 0].map((dow) => {
+                  const d = week[dow];
+                  return (
+                    <div
+                      key={dow}
+                      className={[
+                        "grid grid-cols-1 sm:grid-cols-[10rem_1fr_1fr] items-center gap-3 rounded-2xl border p-3",
+                        d.enabled
+                          ? "border-[var(--brand,#4b7eff)]/30 bg-[var(--brand,#4b7eff)]/5"
+                          : "border-slate-100 bg-slate-50/40",
+                      ].join(" ")}
+                    >
+                      <label className="flex items-center gap-2.5 text-sm font-medium text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={d.enabled}
+                          onChange={(e) => updateDay(dow, { enabled: e.target.checked })}
+                          disabled={bulkLoading}
+                          className="h-4 w-4 rounded border-gray-300 text-[var(--brand,#4b7eff)] focus:ring-[var(--brand,#4b7eff)]"
+                        />
+                        {DAY_LABELS[dow]}
+                      </label>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-slate-600">Start</label>
+                        <Input
+                          type="time"
+                          value={d.start}
+                          disabled={!d.enabled || bulkLoading}
+                          onChange={(e) => updateDay(dow, { start: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-slate-600">End</label>
+                        <Input
+                          type="time"
+                          value={d.end}
+                          disabled={!d.enabled || bulkLoading}
+                          onChange={(e) => updateDay(dow, { end: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[11px] text-slate-500">
+                Existing windows at the same date & start time will be skipped.
+              </p>
+              <Button
+                onClick={bulkCreate}
+                disabled={bulkLoading || !bulkHospitalId}
+                className="
+                  w-full sm:w-auto
+                  px-4 py-2 text-sm font-medium rounded-md
+                  bg-blue-600 text-white shadow-sm hover:bg-blue-700
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                "
+              >
+                {bulkLoading ? "Applying…" : `Apply to ${bulkMonth.format("MMMM")}`}
+              </Button>
+            </div>
+
+            {err && (
+              <p className="text-sm text-red-600 flex items-center gap-1">{err}</p>
+            )}
+            {msg && (
+              <p className="text-sm text-emerald-600 flex items-center gap-1">{msg}</p>
+            )}
+          </div>
+        )}
+
         {/* Creator card */}
+        {mode === "slot" && (
         <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -322,6 +674,7 @@ function Inner() {
             </p>
           )}
         </div>
+        )}
 
         {/* List card */}
         <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">

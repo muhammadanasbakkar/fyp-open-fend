@@ -346,12 +346,234 @@ function List() {
   const sorted = useMemo(
     () =>
       [...filtered].sort(
-        (a, b) => +new Date(a.start) - +new Date(b.start)
+        (a, b) => +new Date(b.start) - +new Date(a.start)
       ),
     [filtered]
   );
 
+  // Group by patient for therapist/receptionist views so we can show a
+  // stacked, PT# wise queue. Patient role sees only their own appts so
+  // grouping isn't applied — they get the flat list.
+  const patientGroups = useMemo(() => {
+    if (role !== "therapist" && role !== "receptionist") return null;
+    const map = new Map<
+      string,
+      {
+        key: string;
+        id: string;
+        name: string;
+        patientId: string; // PT-XXXX human code
+        appts: Appt[];
+        lastStart: number;
+      }
+    >();
+    for (const a of sorted) {
+      const patientObj = typeof a.patient === "object" ? a.patient : null;
+      const id = patientObj?._id || (typeof a.patient === "string" ? a.patient : "");
+      const name =
+        patientObj?.name ||
+        (typeof a.patient === "string" ? a.patient : "Unknown patient");
+      const patientId = patientObj?.patientId || "";
+      const key = id || `name:${name}`;
+      const existing = map.get(key);
+      const t = +new Date(a.start);
+      if (existing) {
+        existing.appts.push(a);
+        if (t > existing.lastStart) existing.lastStart = t;
+        if (!existing.patientId && patientId) existing.patientId = patientId;
+      } else {
+        map.set(key, { key, id, name, patientId, appts: [a], lastStart: t });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.lastStart - a.lastStart);
+  }, [sorted, role]);
+
   const now = Date.now();
+
+  // Tracks which PT# sections are currently collapsed. Default expanded
+  // (key absent from set = open), so a key in the set means "collapsed".
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function renderApptCard(a: Appt) {
+    const isPending = a.status === "pending";
+    const isActing = actingId === a._id;
+    const startTime = new Date(a.start).getTime();
+    const isPast = startTime < now;
+
+    const therapistName =
+      typeof a.therapist === "string" ? a.therapist : a.therapist?.name;
+    const patientName =
+      typeof a.patient === "string" ? a.patient : a.patient?.name;
+
+    const patientIdForLink =
+      (a.patient as any)?._id || String(a.patient || "");
+
+    return (
+      <div
+        key={a._id}
+        className={[
+          "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+          isPast ? "border-gray-100" : "border-[#4b7eff]/30",
+        ].join(" ")}
+      >
+        {/* Accent bar */}
+        <div
+          className={[
+            "absolute inset-y-3 left-0 w-1 rounded-full",
+            isPast ? "bg-gray-200" : "bg-[#4b7eff]",
+          ].join(" ")}
+        />
+
+        <div className="pl-3 sm:pl-4">
+          {/* Top row */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">
+                {fmt(a.start)} <span className="text-gray-400">→</span> {fmtTime(a.end)}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Created {a.createdAt ? fmt(a.createdAt) : "recently"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {a.mode && <ModeBadge mode={a.mode} />}
+              <StatusBadge status={a.status} />
+            </div>
+          </div>
+
+          {/* Middle row: people */}
+          <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+            <p>
+              <span className="text-gray-500">Therapist</span>{" "}
+              <span className="font-medium">{therapistName}</span>
+            </p>
+            <p>
+              <span className="text-gray-500">Patient</span>{" "}
+              <span className="font-medium">{patientName}</span>
+            </p>
+            {a.mode && (
+              <p className="text-xs text-gray-500 sm:col-span-2">
+                Mode{" "}
+                <span className="capitalize">
+                  {a.mode === "online" ? "online" : "in person"}
+                </span>
+              </p>
+            )}
+          </div>
+
+          {/* Therapist quick-access — always show all three forms.
+              A ✓ marker appears on whichever ones already have saved
+              content so the therapist can spot what's been filled,
+              while still being able to open any of them at any time. */}
+          {role !== "therapist" || !a.patient ? (
+            a.meetingLink && a.mode === "online" && role !== "therapist" ? (
+              <div className="mt-2">
+                <a
+                  href={a.meetingLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-[#4b7eff] underline"
+                >
+                  Join video session
+                </a>
+              </div>
+            ) : null
+          ) : (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Link
+                href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(patientIdForLink)}`}
+                className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
+                title={a.hasAssessment ? "Open saved session notes" : "Open session notes form"}
+                prefetch={false}
+              >
+                🧾 Session Notes{a.hasAssessment ? " ✓" : ""}
+              </Link>
+              <Link
+                href={`/patient-records/${patientIdForLink}/treatment-plan`}
+                className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
+                title={a.hasTreatmentPlan ? "Open saved treatment plan" : "Open treatment plan"}
+                prefetch={false}
+              >
+                📋 Treatment Plan{a.hasTreatmentPlan ? " ✓" : ""}
+              </Link>
+              <Link
+                href={`/patient-records/${patientIdForLink}`}
+                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
+                title={a.hasNotes ? "Open saved assessment / SOAP notes" : "Open patient assessment / SOAP notes"}
+                prefetch={false}
+              >
+                📝 Assessment{a.hasNotes ? " ✓" : ""}
+              </Link>
+            </div>
+          )}
+
+          {/* Pending actions */}
+          {isPending && role === "therapist" && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => confirmAppt(a._id)} disabled={isActing}>
+                {isActing ? "Working..." : "Confirm"}
+              </Button>
+              <button
+                onClick={() => cancelAppt(a._id)}
+                disabled={isActing}
+                className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Receipt row */}
+          {(a.status === "confirmed" || a.status === "completed") && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setReceiptAppt(a)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] transition-colors"
+              >
+                🖨️ See Receipt
+              </button>
+            </div>
+          )}
+
+          {/* Video link action for therapist on confirmed online appts */}
+          {role === "therapist" &&
+            a.status === "confirmed" &&
+            a.mode === "online" && (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button onClick={() => sendVideoLink(a._id)} disabled={isActing}>
+                  {a.meetingLink
+                    ? isActing
+                      ? "Sending..."
+                      : "Resend video link"
+                    : isActing
+                      ? "Sending..."
+                      : "Send video link"}
+                </Button>
+
+                {a.meetingLink && (
+                  <a
+                    href={a.meetingLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-[#4b7eff] underline"
+                  >
+                    Open current link
+                  </a>
+                )}
+              </div>
+            )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
@@ -422,200 +644,70 @@ function List() {
           </div>
         )}
 
-        {/* List */}
-        {!loadingList && !!sorted.length && (
-          <div className="space-y-3">
-            {sorted.map((a) => {
-              const isPending = a.status === "pending";
-              const isActing = actingId === a._id;
-              const startTime = new Date(a.start).getTime();
-              const isPast = startTime < now;
-
-              const therapistName =
-                typeof a.therapist === "string"
-                  ? a.therapist
-                  : a.therapist?.name;
-              const patientName =
-                typeof a.patient === "string" ? a.patient : a.patient?.name;
-
+        {/* PT#-wise stacked sections (therapist/receptionist) — each patient
+            becomes a collapsible section with their PT# as the heading and
+            their queue of appointments listed underneath. */}
+        {!loadingList && !!sorted.length && patientGroups && (
+          <div className="space-y-4">
+            {patientGroups.map((g) => {
+              const collapsed = collapsedGroups.has(g.key);
               return (
-                <div
-                  key={a._id}
-                  className={[
-                    "relative overflow-hidden rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
-                    isPast
-                      ? "border-gray-100"
-                      : "border-[#4b7eff]/30",
-                  ].join(" ")}
+                <section
+                  key={g.key}
+                  className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
                 >
-                  {/* Accent bar */}
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(g.key)}
+                    aria-expanded={!collapsed}
                     className={[
-                      "absolute inset-y-3 left-0 w-1 rounded-full",
-                      isPast
-                        ? "bg-gray-200"
-                        : "bg-[#4b7eff]",
+                      "flex w-full flex-wrap items-center justify-between gap-2 text-left",
+                      collapsed ? "" : "mb-3 border-b border-gray-100 pb-3",
                     ].join(" ")}
-                  />
-
-                  <div className="pl-3 sm:pl-4">
-                    {/* Top row */}
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {fmt(a.start)}{" "}
-                          <span className="text-gray-400">→</span>{" "}
-                          {fmtTime(a.end)}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          Created {a.createdAt ? fmt(a.createdAt) : "recently"}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {a.mode && <ModeBadge mode={a.mode} />}
-                        <StatusBadge status={a.status} />
-                      </div>
+                    title={collapsed ? "Expand queue" : "Collapse queue"}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold tracking-wide text-gray-900">
+                        {g.patientId || "PT — not assigned"}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-gray-500">
+                        {g.name}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="inline-flex items-center rounded-full bg-[#4b7eff]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#4b7eff]">
+                        {g.appts.length} appointment{g.appts.length === 1 ? "" : "s"}
+                      </span>
+                      <svg
+                        className={[
+                          "h-4 w-4 text-gray-500 transition-transform",
+                          collapsed ? "" : "rotate-180",
+                        ].join(" ")}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.2}
+                        aria-hidden
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </button>
+                  {!collapsed && (
+                    <div className="space-y-3">
+                      {g.appts.map((a) => renderApptCard(a))}
                     </div>
-
-                    {/* Middle row: people */}
-                    <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
-                      <p>
-                        <span className="text-gray-500">Therapist</span>{" "}
-                        <span className="font-medium">{therapistName}</span>
-                      </p>
-                      <p>
-                        <span className="text-gray-500">Patient</span>{" "}
-                        <span className="font-medium">{patientName}</span>
-                      </p>
-                      {a.mode && (
-                        <p className="text-xs text-gray-500 sm:col-span-2">
-                          Mode{" "}
-                          <span className="capitalize">
-                            {a.mode === "online" ? "online" : "in person"}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Therapist quick-access — always show all three forms.
-                        A ✓ marker appears on whichever ones already have saved
-                        content so the therapist can spot what's been filled,
-                        while still being able to open any of them at any time. */}
-                    {(() => {
-                      const patientIdForLink =
-                        (a.patient as any)?._id || String(a.patient || "");
-                      if (role !== "therapist" || !a.patient) {
-                        return a.meetingLink && a.mode === "online" && role !== "therapist" ? (
-                          <div className="mt-2">
-                            <a
-                              href={a.meetingLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-[#4b7eff] underline"
-                            >
-                              Join video session
-                            </a>
-                          </div>
-                        ) : null;
-                      }
-
-                      return (
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/appointments/my/${a._id}/assessment?patientId=${encodeURIComponent(patientIdForLink)}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs text-purple-700 hover:bg-purple-100"
-                            title={a.hasAssessment ? "Open saved session notes" : "Open session notes form"}
-                            prefetch={false}
-                          >
-                            🧾 Session Notes{a.hasAssessment ? " ✓" : ""}
-                          </Link>
-                          <Link
-                            href={`/patient-records/${patientIdForLink}/treatment-plan`}
-                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-100"
-                            title={a.hasTreatmentPlan ? "Open saved treatment plan" : "Open treatment plan"}
-                            prefetch={false}
-                          >
-                            📋 Treatment Plan{a.hasTreatmentPlan ? " ✓" : ""}
-                          </Link>
-                          <Link
-                            href={`/patient-records/${patientIdForLink}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-100"
-                            title={a.hasNotes ? "Open saved assessment / SOAP notes" : "Open patient assessment / SOAP notes"}
-                            prefetch={false}
-                          >
-                            📝 Assessment{a.hasNotes ? " ✓" : ""}
-                          </Link>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Pending actions */}
-                    {isPending && role === "therapist" && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button
-                          onClick={() => confirmAppt(a._id)}
-                          disabled={isActing}
-                        >
-                          {isActing ? "Working..." : "Confirm"}
-                        </Button>
-                        <button
-                          onClick={() => cancelAppt(a._id)}
-                          disabled={isActing}
-                          className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-
-
-                    {/* Receipt row */}
-                    {(a.status === "confirmed" || a.status === "completed") && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => setReceiptAppt(a)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-[#4b7eff]/40 hover:bg-[#4b7eff]/5 hover:text-[#4b7eff] transition-colors"
-                        >
-                          🖨️ See Receipt
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Video link action for therapist on confirmed online appts */}
-                    {role === "therapist" &&
-                      a.status === "confirmed" &&
-                      a.mode === "online" && (
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <Button
-                            onClick={() => sendVideoLink(a._id)}
-                            disabled={isActing}
-                          >
-                            {a.meetingLink
-                              ? isActing
-                                ? "Sending..."
-                                : "Resend video link"
-                              : isActing
-                                ? "Sending..."
-                                : "Send video link"}
-                          </Button>
-
-                          {a.meetingLink && (
-                            <a
-                              href={a.meetingLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-[#4b7eff] underline"
-                            >
-                              Open current link
-                            </a>
-                          )}
-                        </div>
-                      )}
-                  </div>
-                </div>
+                  )}
+                </section>
               );
             })}
           </div>
+        )}
+
+        {/* Flat list — used when grouping is not applicable (e.g., patient
+            viewing their own appointments). */}
+        {!loadingList && !!sorted.length && !patientGroups && (
+          <div className="space-y-3">{sorted.map((a) => renderApptCard(a))}</div>
         )}
       </div>
 

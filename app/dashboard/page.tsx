@@ -32,18 +32,6 @@ function getKarachiISODate() {
   }).format(new Date());
 }
 
-function isKarachiFirstOfMonth() {
-  const day = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Karachi", day: "2-digit",
-  }).format(new Date());
-  return day === "01";
-}
-
-// Current year-month in Karachi, e.g. "2026-03"
-function getKarachiYearMonth(): string {
-  return getKarachiISODate().slice(0, 7);
-}
-
 // ─── stat skeleton ───────────────────────────────────────────────────────────
 
 function StatSkeleton() {
@@ -369,11 +357,31 @@ function TherapistDashboard({
   const apptStats = useAppointmentStats(token);
   const meta = ROLE_META.therapist;
   const specialtiesCompleted = !!safeGet(user, "therapistInfo.specialtiesCompleted");
+
+  // Show the "Complete your specialties" banner at most once every 3 months
+  // per user. We stamp localStorage on first display, then suppress further
+  // shows until the timestamp is older than ~3 months. A manual close on the
+  // banner hides it for the rest of the session but does not reset the timer.
+  const [showSpecialtiesBanner, setShowSpecialtiesBanner] = useState(false);
+  useEffect(() => {
+    if (specialtiesCompleted) return;
+    if (typeof window === "undefined") return;
+    const userId = user?._id || user?.id;
+    if (!userId) return;
+    const key = `specialties-banner-shown:${userId}`;
+    const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+    const lastShown = Number(localStorage.getItem(key) || 0);
+    if (Date.now() - lastShown > THREE_MONTHS_MS) {
+      setShowSpecialtiesBanner(true);
+      localStorage.setItem(key, String(Date.now()));
+    }
+  }, [specialtiesCompleted, user]);
+
   return (
     <div className="space-y-8">
       <HeroBanner user={user} roleMeta={meta} />
 
-      {!specialtiesCompleted && (
+      {!specialtiesCompleted && showSpecialtiesBanner && (
         <div className="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
             {Icons.pending}
@@ -390,34 +398,49 @@ function TherapistDashboard({
           >
             Complete now
           </button>
+          <button
+            type="button"
+            onClick={() => setShowSpecialtiesBanner(false)}
+            className="shrink-0 rounded-lg p-1 text-amber-600 hover:bg-amber-100"
+            aria-label="Dismiss"
+            title="Dismiss for now"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* Stats — only genuine numeric stats. Navigation cards belong in
+          Quick actions, not here. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {apptStats === null ? (
-          [1, 2, 3, 4].map(i => <StatSkeleton key={i} />)
+          [1, 2].map((i) => <StatSkeleton key={i} />)
         ) : (
           <>
-            <StatCard label="Upcoming" value={apptStats.upcoming} sub="sessions scheduled" icon={Icons.calendar} color={meta.color} />
-            <StatCard label="Total sessions" value={apptStats.total} sub="all time" icon={Icons.chart} color="#4b7eff" />
-            <StatCard label="Availability" value="Set" sub="manage your schedule" icon={Icons.clock} color="#0f766e" />
-            <StatCard label="Patient records" value="View" sub="session notes" icon={Icons.notes} color="#d97706" />
+            <StatCard
+              label="Upcoming"
+              value={apptStats.upcoming}
+              sub="sessions scheduled"
+              icon={Icons.calendar}
+              color={meta.color}
+            />
+            <StatCard
+              label="Total sessions"
+              value={apptStats.total}
+              sub="all time"
+              icon={Icons.chart}
+              color="#4b7eff"
+            />
           </>
         )}
       </div>
 
-      {/* Quick actions */}
+      {/* Quick actions — trimmed to the four daily-use destinations. */}
       <div>
         <SectionHeader>Quick actions</SectionHeader>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <ActionCard
-            title="Manage availability"
-            desc="Define your working hours and open appointment slots."
-            href="/availability"
-            icon={Icons.clock}
-            accent={meta.color}
-          />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <ActionCard
             title="My appointments"
             desc="View today's schedule and upcoming patient sessions."
@@ -433,11 +456,11 @@ function TherapistDashboard({
             accent="#d97706"
           />
           <ActionCard
-            title="Update profile"
-            desc="Edit your bio, fees, specializations, and clinic info."
-            href="/settings/profile"
-            icon={Icons.settings}
-            accent="#64748b"
+            title="Manage availability"
+            desc="Define your working hours and open appointment slots."
+            href="/availability"
+            icon={Icons.clock}
+            accent={meta.color}
           />
           <button
             type="button"
@@ -453,19 +476,14 @@ function TherapistDashboard({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Specialties & modalities</h3>
-              <p className="mt-0.5 text-xs leading-relaxed text-gray-500">Update the specialties that help patients find you.</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
+                Update the specialties that help patients find you.
+              </p>
             </div>
             <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-amber-500 group-hover:translate-x-0.5 transition-transform">
               Open →
             </span>
           </button>
-          <ActionCard
-            title="Therapist directory"
-            desc="See how your profile appears to patients."
-            href="/appointments/book"
-            icon={Icons.search}
-            accent="#64748b"
-          />
         </div>
       </div>
     </div>
@@ -742,34 +760,51 @@ export default function Dashboard() {
 
   const roleMeta = ROLE_META[user?.role] ?? ROLE_META.patient;
 
-  // Specialties modal gating — shows on first login ever, then on the 1st of each month
+  // Specialties modal gating — show once every ~3 months per therapist.
+  // Backend records `specialtiesModalLastShownOn` (YYYY-MM-DD) each time we
+  // open the modal; we compare that against today to decide whether enough
+  // time has passed. First-ever login always shows. A localStorage fallback
+  // covers cases where the backend timestamp hasn't yet been reflected in
+  // the user object (e.g., session refresh hasn't happened).
   useEffect(() => {
     if (!user || !token || user?.role !== "therapist") return;
     if (modalDecisionMadeRef.current) return;
 
-    const today = getKarachiISODate();           // "YYYY-MM-DD"
-    const thisMonth = getKarachiYearMonth();      // "YYYY-MM"
-    const firstOfMonth = isKarachiFirstOfMonth(); // true only on the 1st
+    const today = getKarachiISODate(); // "YYYY-MM-DD"
+    const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
 
     const firstShownAt = safeGet(user, "therapistInfo.specialtiesModalFirstShownAt");
-    // lastShownOn is stored as "YYYY-MM-DD"; compare year-month prefix to check same month
-    const lastShownOn: string | null = safeGet(user, "therapistInfo.specialtiesModalLastShownOn") ?? null;
-    const shownThisMonth = lastShownOn ? lastShownOn.slice(0, 7) === thisMonth : false;
+    const lastShownOn: string | null =
+      safeGet(user, "therapistInfo.specialtiesModalLastShownOn") ?? null;
+    const userId = user?._id || user?.id || user?.email || "unknown";
 
-    // Session-storage guard: prevents re-showing on page navigation within the same session
-    const sessionKey = `thera:specialtiesModal:shown:${user?._id || user?.id || user?.email || "unknown"}:${today}`;
+    // Pick whichever record is newer: the server-side timestamp or a
+    // localStorage stamp written when we last opened the modal in this
+    // browser (covers the same-day-after-shown case where the user object
+    // hasn't reloaded yet).
+    let lastShownTs = lastShownOn ? Date.parse(lastShownOn) : 0;
+    if (typeof window !== "undefined") {
+      const localTs = Number(localStorage.getItem(`thera:specialtiesModal:lastShown:${userId}`) || 0);
+      if (localTs > lastShownTs) lastShownTs = localTs;
+    }
+
+    // Session-storage guard: prevents re-showing on in-session navigation.
+    const sessionKey = `thera:specialtiesModal:shown:${userId}:${today}`;
     if (typeof window !== "undefined" && sessionStorage.getItem(sessionKey) === "1") {
       modalDecisionMadeRef.current = true;
       return;
     }
 
-    // Show when: never shown before  OR  it's the 1st of the month and not yet shown this month
-    const shouldShow = !firstShownAt || (firstOfMonth && !shownThisMonth);
+    const shouldShow = !firstShownAt || now - lastShownTs > THREE_MONTHS_MS;
 
     modalDecisionMadeRef.current = true;
     if (!shouldShow) return;
 
-    if (typeof window !== "undefined") sessionStorage.setItem(sessionKey, "1");
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(sessionKey, "1");
+      localStorage.setItem(`thera:specialtiesModal:lastShown:${userId}`, String(now));
+    }
     setShowSpecialtiesModal(true);
 
     // Record in DB that modal was shown today
