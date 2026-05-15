@@ -172,31 +172,288 @@ function fmtTime(d: string) {
 // ── role-specific report views ────────────────────────────────────────────────
 
 function HospitalAdminReport({ data }: { data: any }) {
+  const s = data.summary || {};
+  const totalByMode = (data.byMode || []).reduce(
+    (acc: number, x: KV) => acc + x.count,
+    0
+  ) || 0;
+  const onlineCount = (data.byMode || []).find((x: KV) => x.label === "online")?.count || 0;
+  const inPersonCount =
+    (data.byMode || []).find((x: KV) => x.label === "in-person")?.count || 0;
+  const onlinePct = totalByMode ? Math.round((onlineCount / totalByMode) * 100) : 0;
+  const inPersonPct = totalByMode ? Math.round((inPersonCount / totalByMode) * 100) : 0;
+  const dominantMode =
+    onlineCount === 0 && inPersonCount === 0
+      ? null
+      : onlineCount >= inPersonCount
+        ? { label: "Online", pct: onlinePct }
+        : { label: "In-person", pct: inPersonPct };
+
+  const peakMonth = (data.monthly || []).reduce(
+    (best: Monthly | null, m: Monthly) => (!best || m.count > best.count ? m : best),
+    null as Monthly | null
+  );
+
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-[#4b7eff]/20 bg-[#4b7eff]/5 px-5 py-3">
-        <p className="font-semibold text-gray-800">{data.hospital?.name}</p>
-        <p className="text-sm text-gray-500 capitalize">{data.hospital?.type} · {data.hospital?.city}</p>
+      {/* Hospital hero strip */}
+      <section className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        <div className="relative h-24 bg-gradient-to-br from-[#3a5bef] via-[#4b7eff] to-[#7c3aed] sm:h-28">
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-15"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+              backgroundSize: "28px 28px",
+            }}
+          />
+          <div aria-hidden className="absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/15 blur-3xl" />
+          <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white ring-1 ring-white/20 backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Live data
+          </span>
+        </div>
+
+        <div className="relative px-6 sm:px-8">
+          <div className="-mt-12 inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-white text-3xl ring-4 ring-white shadow-xl sm:-mt-14 sm:h-24 sm:w-24">
+            🏥
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 px-6 pb-6 pt-3 sm:px-8 sm:pb-7">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-extrabold tracking-tight text-gray-900 sm:text-2xl">
+              {data.hospital?.name || "Your hospital"}
+            </h2>
+            {data.hospital?.type && (
+              <span className="inline-flex items-center rounded-full bg-[#4b7eff]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#4b7eff]">
+                {data.hospital.type.replace(/-/g, " ")}
+              </span>
+            )}
+          </div>
+          {data.hospital?.city && (
+            <p className="inline-flex items-center gap-1 text-xs text-gray-500">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+              </svg>
+              {data.hospital.city}
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Headline KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label="Total appointments"
+          value={s.totalAppointments ?? 0}
+          sub="all time"
+          color="#4b7eff"
+          icon={
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25" />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="This month"
+          value={s.apptThisMonth ?? 0}
+          sub={new Date().toLocaleString("en-PK", { month: "long", year: "numeric" })}
+          color="#0f766e"
+          icon={
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Today"
+          value={s.apptToday ?? 0}
+          sub="confirmed + completed"
+          color="#7c3aed"
+          icon={
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Active therapists"
+          value={s.therapistsCount ?? 0}
+          sub="enrolled at this facility"
+          color="#d97706"
+          icon={
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+          }
+        />
       </div>
 
-      <SectionTitle>Overview</SectionTitle>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard label="Total Appointments"   value={data.summary.totalAppointments} />
-        <StatCard label="This Month"           value={data.summary.apptThisMonth} />
-        <StatCard label="Today"                value={data.summary.apptToday} />
-        <StatCard label="Completed"            value={data.summary.completedCount} />
-        <StatCard label="Completion Rate"      value={`${data.summary.completionRate}%`} sub="of all appointments" />
-        <StatCard label="Active Therapists"    value={data.summary.therapistsCount} />
+      {/* Completion-rate hero card + mode split */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm lg:col-span-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+            Completion rate
+          </p>
+          <div className="mt-3 flex items-center gap-4">
+            <div className="relative h-24 w-24 shrink-0">
+              <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
+                <circle r="15.9155" cx="18" cy="18" fill="transparent" stroke="#e5e7eb" strokeWidth="3.5" />
+                <circle
+                  r="15.9155"
+                  cx="18"
+                  cy="18"
+                  fill="transparent"
+                  stroke="#10b981"
+                  strokeWidth="3.5"
+                  strokeDasharray={`${s.completionRate || 0} ${100 - (s.completionRate || 0)}`}
+                  strokeDashoffset="0"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-lg font-extrabold text-emerald-900">
+                {s.completionRate ?? 0}%
+              </span>
+            </div>
+            <div className="text-xs text-gray-700">
+              <p>
+                <span className="font-bold text-gray-900">{s.completedCount ?? 0}</span>{" "}
+                completed
+              </p>
+              <p className="mt-1">
+                of{" "}
+                <span className="font-bold text-gray-900">{s.totalAppointments ?? 0}</span>{" "}
+                total
+              </p>
+              <p className="mt-2 text-[11px] text-gray-500">
+                Healthy range is 70%+ for active clinics.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-gray-900">Mode split</p>
+            {dominantMode && (
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                {dominantMode.label} leads · {dominantMode.pct}%
+              </span>
+            )}
+          </div>
+          <ModeBar
+            label="In-person"
+            count={inPersonCount}
+            pct={inPersonPct}
+            color="#7c3aed"
+          />
+          <div className="mt-3" />
+          <ModeBar
+            label="Online"
+            count={onlineCount}
+            pct={onlinePct}
+            color="#0ea5e9"
+          />
+          {!totalByMode && (
+            <p className="mt-2 text-xs italic text-gray-400">
+              No appointments recorded yet.
+            </p>
+          )}
+        </div>
       </div>
 
-      <SectionTitle>Trends & Breakdown</SectionTitle>
-      <div className="grid gap-5 lg:grid-cols-2">
-        <BarChart data={data.monthly} title="Appointments — Last 6 Months" />
-        <DonutChart data={data.byStatus} title="By Status" />
-        <DonutChart data={data.byMode}   title="By Mode (In-Person vs Online)" />
-        {data.topTherapists?.length > 0 && (
-          <HBarChart data={data.topTherapists.map((t: any) => ({ label: t.name, count: t.count }))} title="Top Therapists by Sessions" />
-        )}
+      {/* Trend + status donut */}
+      <SectionTitle>Trends & breakdown</SectionTitle>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <BarChart
+            data={data.monthly}
+            title={
+              peakMonth?.count
+                ? `Appointments — Last 6 months · peak ${peakMonth.label} (${peakMonth.count})`
+                : "Appointments — Last 6 months"
+            }
+          />
+        </div>
+        <DonutChart data={data.byStatus} title="By status" />
+      </div>
+
+      {/* Top therapists */}
+      {data.topTherapists?.length > 0 && (
+        <>
+          <SectionTitle>Top therapists</SectionTitle>
+          <HBarChart
+            data={data.topTherapists.map((t: any) => ({ label: t.name, count: t.count }))}
+            title="Sessions per therapist"
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── KPI card with icon tile ─────────────────────────────── */
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <span
+        className="flex h-10 w-10 items-center justify-center rounded-xl"
+        style={{ background: `${color}15`, color }}
+      >
+        {icon}
+      </span>
+      <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        {label}
+      </p>
+      <p className="mt-0.5 text-3xl font-extrabold text-gray-900">{value}</p>
+      {sub && <p className="mt-0.5 text-[11px] text-gray-500">{sub}</p>}
+    </div>
+  );
+}
+
+/* ── horizontal mode bar (in-person vs online) ───────────── */
+function ModeBar({
+  label,
+  count,
+  pct,
+  color,
+}: {
+  label: string;
+  count: number;
+  pct: number;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="inline-flex items-center gap-1.5 font-medium text-gray-700">
+          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+          {label}
+        </span>
+        <span className="text-gray-500">
+          <span className="font-bold text-gray-900">{count}</span> · {pct}%
+        </span>
+      </div>
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, background: color }}
+        />
       </div>
     </div>
   );

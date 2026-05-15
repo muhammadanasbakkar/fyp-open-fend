@@ -684,30 +684,46 @@ function SuperAdminDashboard({ user, token }: { user: any; token: string | null 
     <div className="space-y-8">
       <HeroBanner user={user} roleMeta={meta} />
 
+      {/* Urgent: pending approvals — only renders when there's something to action */}
       {pendingCount !== null && pendingCount > 0 && (
-        <div className="flex items-start gap-4 rounded-2xl border border-red-200 bg-red-50 p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
-            {Icons.pending}
+        <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 via-rose-50 to-white p-5 shadow-sm">
+          <div aria-hidden className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-red-200/30 blur-3xl" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                {Icons.pending}
+              </div>
+              <div>
+                <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-red-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                  </span>
+                  Action required
+                </p>
+                <h3 className="mt-1 text-base font-bold text-red-900 sm:text-lg">
+                  {pendingCount} pending approval{pendingCount > 1 ? "s" : ""}
+                </h3>
+                <p className="mt-1 max-w-md text-xs text-red-700">
+                  Therapist or receptionist accounts are waiting for your review.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/admin/pending-users"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-md hover:bg-red-700 active:scale-[0.98] transition-all"
+            >
+              Review now
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </Link>
           </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-red-900">
-              {pendingCount} pending approval{pendingCount > 1 ? "s" : ""}
-            </h3>
-            <p className="mt-1 text-xs text-red-700">
-              New therapist or receptionist accounts are waiting for your review and approval.
-            </p>
-          </div>
-          <Link
-            href="/admin/pending-users"
-            className="shrink-0 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
-          >
-            Review now
-          </Link>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* Stats — four real numeric KPIs (no navigation tiles). */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Pending approvals"
           value={pendingCount === null ? "—" : pendingCount}
@@ -716,23 +732,41 @@ function SuperAdminDashboard({ user, token }: { user: any; token: string | null 
           color="#dc2626"
         />
         {apptStats === null ? (
-          [1, 2, 3].map(i => <StatSkeleton key={i} />)
+          [1, 2, 3].map((i) => <StatSkeleton key={i} />)
         ) : (
           <>
-            <StatCard label="Upcoming appts" value={apptStats.upcoming} sub="across all clinics" icon={Icons.calendar} color="#4b7eff" />
-            <StatCard label="Total appts" value={apptStats.total} sub="all time" icon={Icons.chart} color="#0f766e" />
-            <StatCard label="Hospitals" value="Manage" sub="clinics & locations" icon={Icons.building} color="#d97706" />
+            <StatCard
+              label="Upcoming appts"
+              value={apptStats.upcoming}
+              sub="across all clinics"
+              icon={Icons.calendar}
+              color={meta.color}
+            />
+            <StatCard
+              label="Pending bookings"
+              value={apptStats.pending}
+              sub="awaiting therapist confirm"
+              icon={Icons.clock}
+              color="#d97706"
+            />
+            <StatCard
+              label="Completed sessions"
+              value={apptStats.completed}
+              sub="all time"
+              icon={Icons.chart}
+              color="#0f766e"
+            />
           </>
         )}
       </div>
 
-      {/* Quick actions */}
+      {/* Administration — four daily-use destinations. */}
       <div>
         <SectionHeader>Administration</SectionHeader>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <ActionCard
             title="Pending users"
-            desc="Approve or reject therapist and receptionist account requests."
+            desc="Approve or reject therapist and receptionist accounts."
             href="/admin/pending-users"
             icon={Icons.check}
             accent="#dc2626"
@@ -747,55 +781,645 @@ function SuperAdminDashboard({ user, token }: { user: any; token: string | null 
           />
           <ActionCard
             title="All appointments"
-            desc="View appointments across all therapists and clinics."
+            desc="View bookings across every therapist and clinic."
             href="/appointments/my"
             icon={Icons.calendar}
             accent="#4b7eff"
           />
           <ActionCard
-            title="Therapist directory"
-            desc="Browse all registered and approved therapists."
-            href="/appointments/book"
-            icon={Icons.users}
-            accent="#7c3aed"
-          />
-          <ActionCard
-            title="Patient records"
-            desc="Oversee session notes and record-sharing requests."
-            href="/patient-records"
-            icon={Icons.notes}
+            title="Reports & analytics"
+            desc="Platform-wide trends, registrations, and breakdowns."
+            href="/reports"
+            icon={Icons.chart}
             accent="#0f766e"
-          />
-          <ActionCard
-            title="Account settings"
-            desc="Update your admin profile and contact information."
-            href="/settings/profile"
-            icon={Icons.settings}
-            accent="#64748b"
           />
         </div>
       </div>
 
-      {/* System info */}
-      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">System overview</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
+      {/* Hospitals overview — list every hospital and its therapists. */}
+      <HospitalsOverview token={token} />
+
+      {/* Supervisors overview — list every supervisor and the therapists they oversee. */}
+      <SupervisorsOverview token={token} />
+
+      {/* Secondary destinations — smaller row for less-frequent navigation. */}
+      <div>
+        <SectionHeader>Other</SectionHeader>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Platform", value: "TheraKonnect", sub: "Mental health clinic management" },
-            { label: "Your role", value: "Super Admin", sub: "Full platform access" },
-            { label: "Support", value: "resources", sub: "Help center & docs", href: "/resources" },
-          ].map((item) => (
-            <div key={item.label} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-xs text-gray-500">{item.label}</p>
-              {item.href ? (
-                <Link href={item.href} className="mt-1 text-sm font-semibold text-[#4b7eff] hover:underline">{item.value}</Link>
-              ) : (
-                <p className="mt-1 text-sm font-semibold text-gray-900">{item.value}</p>
-              )}
-              <p className="mt-0.5 text-[11px] text-gray-400">{item.sub}</p>
-            </div>
+            {
+              title: "Therapist directory",
+              desc: "Browse approved therapist profiles.",
+              href: "/appointments/book",
+              icon: Icons.users,
+              accent: "#7c3aed",
+            },
+            {
+              title: "Patient records",
+              desc: "Oversee session notes & sharing.",
+              href: "/patient-records",
+              icon: Icons.notes,
+              accent: "#0f766e",
+            },
+            {
+              title: "Resources",
+              desc: "Help articles & platform docs.",
+              href: "/resources",
+              icon: Icons.list,
+              accent: "#64748b",
+            },
+            {
+              title: "Account settings",
+              desc: "Profile & sign-in security.",
+              href: "/settings/profile",
+              icon: Icons.settings,
+              accent: "#64748b",
+            },
+          ].map((a) => (
+            <Link
+              key={a.title}
+              href={a.href}
+              className="group flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#4b7eff]/30 hover:shadow-md"
+            >
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                style={{ background: `${a.accent}15`, color: a.accent }}
+              >
+                {a.icon}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-gray-900">{a.title}</p>
+                <p className="mt-0.5 truncate text-[11px] text-gray-500">{a.desc}</p>
+              </div>
+              <svg
+                className="mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#4b7eff]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </Link>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── hospitals overview (used by SuperAdmin dashboard) ───────────────────────
+
+type AdminHospital = {
+  _id: string;
+  name: string;
+  city?: string;
+  address?: string;
+  type?: string;
+  status?: "pending" | "approved" | "rejected";
+  isActive?: boolean;
+  therapistsCount: number;
+  approvedCount: number;
+  pendingCount: number;
+  therapists: {
+    _id: string;
+    name: string | null;
+    email: string | null;
+    profilePicture: string | null;
+    isApproved: boolean;
+    specializations: string[];
+    yearsExperience: number | null;
+    fees: { currency?: string; online?: number; inPerson?: number } | null;
+    isPrimary: boolean;
+  }[];
+};
+
+const HOSPITAL_CDN = (
+  process.env.NEXT_PUBLIC_CDN_BASE ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  ""
+).replace(/\/+$/, "");
+
+function hospitalAvatarSrc(profilePicture: string | null | undefined): string | null {
+  if (!profilePicture) return null;
+  if (profilePicture.startsWith("http://") || profilePicture.startsWith("https://")) {
+    return profilePicture;
+  }
+  return `${HOSPITAL_CDN}/${profilePicture.replace(/^\/+/, "")}`;
+}
+
+function HospitalsOverview({ token }: { token: string | null }) {
+  const [hospitals, setHospitals] = useState<AdminHospital[] | null>(null);
+  const [err, setErr] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    setErr("");
+    api("api/admin/hospitals/with-therapists", {
+      headers: authHeader(token) as HeadersInit,
+    })
+      .then((d: any) => setHospitals(Array.isArray(d) ? d : []))
+      .catch((e: any) => {
+        setErr(e?.message || "Failed to load hospitals.");
+        setHospitals([]);
+      });
+  }, [token]);
+
+  const filtered = (hospitals || []).filter((h) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      h.name?.toLowerCase().includes(q) ||
+      h.city?.toLowerCase().includes(q) ||
+      h.therapists.some((t) => t.name?.toLowerCase().includes(q))
+    );
+  });
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <SectionHeader>Hospitals overview</SectionHeader>
+        <div className="relative w-full sm:w-64">
+          <svg
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+            />
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search hospital, city, therapist"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-[#4b7eff] focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30"
+          />
+        </div>
+      </div>
+
+      {err && (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {err}
+        </p>
+      )}
+
+      <div className="mt-4 space-y-3">
+        {hospitals === null ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-2xl border border-gray-100 bg-white"
+            />
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+            {hospitals.length === 0
+              ? "No hospitals registered yet."
+              : "No hospitals match your search."}
+          </div>
+        ) : (
+          filtered.map((h) => {
+            const open = expanded === h._id;
+            return (
+              <section
+                key={h._id}
+                className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpanded(open ? null : h._id)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-gray-50 sm:px-5"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#4b7eff]/15 to-[#7c3aed]/15 text-lg">
+                      🏥
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-900">
+                        <span className="truncate">{h.name}</span>
+                        {h.status && (
+                          <span
+                            className={[
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ring-1",
+                              h.status === "approved"
+                                ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                : h.status === "pending"
+                                  ? "bg-amber-50 text-amber-700 ring-amber-200"
+                                  : "bg-red-50 text-red-700 ring-red-200",
+                            ].join(" ")}
+                          >
+                            {h.status}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-gray-500">
+                        {[h.city, h.address].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#4b7eff]/10 px-2 py-0.5 text-[11px] font-bold text-[#4b7eff]">
+                      {h.therapistsCount} therapist
+                      {h.therapistsCount === 1 ? "" : "s"}
+                    </span>
+                    {h.pendingCount > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                        {h.pendingCount} pending
+                      </span>
+                    )}
+                    <svg
+                      className={[
+                        "h-4 w-4 text-gray-400 transition-transform",
+                        open ? "rotate-180" : "",
+                      ].join(" ")}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </button>
+
+                {open && (
+                  <div className="border-t border-gray-100 bg-gray-50/60 px-4 py-4 sm:px-5">
+                    {h.therapists.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-6 text-center text-xs text-gray-500">
+                        No therapists are affiliated with this hospital yet.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {h.therapists.map((t) => {
+                          const src = hospitalAvatarSrc(t.profilePicture);
+                          const initials = (t.name || t.email || "T")
+                            .split(" ")
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase();
+                          const minFee = (() => {
+                            const cands = [t.fees?.online, t.fees?.inPerson].filter(
+                              (v): v is number => typeof v === "number" && v > 0
+                            );
+                            return cands.length ? Math.min(...cands) : null;
+                          })();
+                          return (
+                            <Link
+                              key={t._id}
+                              href={`/therapists/${t._id}`}
+                              className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-3 transition-colors hover:border-[#4b7eff]/30 hover:bg-white"
+                            >
+                              {src ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={src}
+                                  alt={t.name || ""}
+                                  className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white shadow"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4b7eff] to-[#7c3aed] text-xs font-bold text-white ring-2 ring-white shadow">
+                                  {initials}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-gray-900">
+                                  <span className="truncate">{t.name || "—"}</span>
+                                  {t.isPrimary && (
+                                    <span className="rounded-full bg-[#4b7eff]/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#4b7eff]">
+                                      Primary
+                                    </span>
+                                  )}
+                                  {!t.isApproved && (
+                                    <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
+                                      Pending
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="truncate text-[11px] text-gray-500">
+                                  {t.email || "—"}
+                                </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-1">
+                                  {(t.specializations || []).slice(0, 2).map((s) => (
+                                    <span
+                                      key={s}
+                                      className="inline-flex items-center rounded-full bg-[#4b7eff]/8 px-1.5 py-0.5 text-[9px] font-medium text-[#4b7eff]"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                  {(t.specializations || []).length > 2 && (
+                                    <span className="text-[9px] text-gray-400">
+                                      +{t.specializations.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                {minFee != null && (
+                                  <>
+                                    <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+                                      From
+                                    </p>
+                                    <p className="text-xs font-bold text-gray-900">
+                                      {t.fees?.currency || "PKR"} {minFee.toLocaleString()}
+                                    </p>
+                                  </>
+                                )}
+                                {t.yearsExperience != null && t.yearsExperience > 0 && (
+                                  <p className="mt-0.5 text-[10px] text-gray-500">
+                                    {t.yearsExperience} yr{t.yearsExperience === 1 ? "" : "s"}
+                                  </p>
+                                )}
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── supervisors overview (used by SuperAdmin dashboard) ─────────────────────
+
+type AdminSupervisor = {
+  _id: string;
+  name: string | null;
+  email: string | null;
+  profilePicture: string | null;
+  specializations: string[];
+  yearsExperience: number | null;
+  licensingCouncil: string | null;
+  therapistsCount: number;
+  approvedCount: number;
+  pendingCount: number;
+  therapists: {
+    _id: string;
+    name: string | null;
+    email: string | null;
+    profilePicture: string | null;
+    isApproved: boolean;
+    specializations: string[];
+    yearsExperience: number | null;
+  }[];
+};
+
+function SupervisorsOverview({ token }: { token: string | null }) {
+  const [supervisors, setSupervisors] = useState<AdminSupervisor[] | null>(null);
+  const [err, setErr] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    setErr("");
+    api("api/admin/supervisors/with-therapists", {
+      headers: authHeader(token) as HeadersInit,
+    })
+      .then((d: any) => setSupervisors(Array.isArray(d) ? d : []))
+      .catch((e: any) => {
+        setErr(e?.message || "Failed to load supervisors.");
+        setSupervisors([]);
+      });
+  }, [token]);
+
+  const filtered = (supervisors || []).filter((s) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      s.name?.toLowerCase().includes(q) ||
+      s.email?.toLowerCase().includes(q) ||
+      s.therapists.some((t) => t.name?.toLowerCase().includes(q))
+    );
+  });
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <SectionHeader>Supervisors overview</SectionHeader>
+        <div className="relative w-full sm:w-64">
+          <svg
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+            />
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search supervisor or therapist"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-[#4b7eff] focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30"
+          />
+        </div>
+      </div>
+
+      {err && (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {err}
+        </p>
+      )}
+
+      <div className="mt-4 space-y-3">
+        {supervisors === null ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-2xl border border-gray-100 bg-white"
+            />
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+            {supervisors.length === 0
+              ? "No supervisors registered yet."
+              : "No supervisors match your search."}
+          </div>
+        ) : (
+          filtered.map((sup) => {
+            const open = expanded === sup._id;
+            const supSrc = hospitalAvatarSrc(sup.profilePicture);
+            const supInitials = (sup.name || sup.email || "S")
+              .split(" ")
+              .map((w) => w[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase();
+            return (
+              <section
+                key={sup._id}
+                className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpanded(open ? null : sup._id)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-gray-50 sm:px-5"
+                >
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    {supSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={supSrc}
+                        alt={sup.name || ""}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white shadow"
+                      />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-[#4b7eff] text-xs font-bold text-white ring-2 ring-white shadow">
+                        {supInitials}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-900">
+                        <span className="truncate">{sup.name || "—"}</span>
+                        {sup.licensingCouncil && (
+                          <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">
+                            {sup.licensingCouncil}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-gray-500">
+                        {sup.email || "—"}
+                        {sup.yearsExperience != null && sup.yearsExperience > 0 && (
+                          <span className="ml-2 text-gray-400">
+                            · {sup.yearsExperience} yr{sup.yearsExperience === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-700">
+                      {sup.therapistsCount} therapist
+                      {sup.therapistsCount === 1 ? "" : "s"}
+                    </span>
+                    {sup.pendingCount > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                        {sup.pendingCount} pending
+                      </span>
+                    )}
+                    <svg
+                      className={[
+                        "h-4 w-4 text-gray-400 transition-transform",
+                        open ? "rotate-180" : "",
+                      ].join(" ")}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </button>
+
+                {open && (
+                  <div className="border-t border-gray-100 bg-gray-50/60 px-4 py-4 sm:px-5">
+                    {sup.therapists.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-6 text-center text-xs text-gray-500">
+                        No therapists are assigned to this supervisor yet.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {sup.therapists.map((t) => {
+                          const tSrc = hospitalAvatarSrc(t.profilePicture);
+                          const initials = (t.name || t.email || "T")
+                            .split(" ")
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase();
+                          return (
+                            <Link
+                              key={t._id}
+                              href={`/therapists/${t._id}`}
+                              className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-3 transition-colors hover:border-violet-300 hover:bg-white"
+                            >
+                              {tSrc ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={tSrc}
+                                  alt={t.name || ""}
+                                  className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white shadow"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4b7eff] to-[#7c3aed] text-xs font-bold text-white ring-2 ring-white shadow">
+                                  {initials}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-gray-900">
+                                  <span className="truncate">{t.name || "—"}</span>
+                                  {!t.isApproved && (
+                                    <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
+                                      Pending
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="truncate text-[11px] text-gray-500">
+                                  {t.email || "—"}
+                                </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-1">
+                                  {(t.specializations || []).slice(0, 2).map((s) => (
+                                    <span
+                                      key={s}
+                                      className="inline-flex items-center rounded-full bg-[#4b7eff]/8 px-1.5 py-0.5 text-[9px] font-medium text-[#4b7eff]"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                  {(t.specializations || []).length > 2 && (
+                                    <span className="text-[9px] text-gray-400">
+                                      +{t.specializations.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {t.yearsExperience != null && t.yearsExperience > 0 && (
+                                <div className="shrink-0 text-right text-[10px] text-gray-500">
+                                  {t.yearsExperience} yr{t.yearsExperience === 1 ? "" : "s"}
+                                </div>
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })
+        )}
       </div>
     </div>
   );
