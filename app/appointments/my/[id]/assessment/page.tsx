@@ -47,6 +47,123 @@ function fmtTime(dt?: string | Date) {
   return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+type AssessmentComment = {
+  _id?: string;
+  author?: string;
+  authorName?: string;
+  authorRole?: "therapist" | "supervisor";
+  text: string;
+  createdAt?: string;
+};
+
+function fmtCommentTime(d?: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString(undefined, {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function AssessmentCommentThread({
+  assessmentId,
+  comments,
+  token,
+  onCommentAdded,
+}: {
+  assessmentId: string;
+  comments: AssessmentComment[];
+  token: string | null;
+  onCommentAdded: (c: AssessmentComment) => void;
+}) {
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setErr("");
+    setPosting(true);
+    try {
+      const res: any = await api(
+        `api/record-requests/assessments/${assessmentId}/comment`,
+        {
+          method: "POST",
+          headers: {
+            ...authHeader(token || undefined),
+            "Content-Type": "application/json",
+          } as HeadersInit,
+          body: JSON.stringify({ text: trimmed }),
+        }
+      );
+      onCommentAdded(
+        res?.comment || {
+          text: trimmed,
+          authorRole: "therapist",
+          createdAt: new Date().toISOString(),
+        }
+      );
+      setText("");
+    } catch (e: any) {
+      setErr(e?.message || "Could not post comment.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-200 pt-3">
+      <p className="mb-2 text-[10px] uppercase tracking-wider text-gray-400">
+        Private comments · you & your supervisor
+      </p>
+      {comments.length > 0 && (
+        <ul className="mb-2 space-y-1.5">
+          {comments.map((c, i) => (
+            <li
+              key={c._id || i}
+              className={`rounded-lg px-2.5 py-1.5 text-xs ${
+                c.authorRole === "supervisor"
+                  ? "bg-violet-50 border border-violet-200"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              <p className="text-[10px] text-gray-500">
+                <span className="font-semibold text-gray-700">
+                  {c.authorName || (c.authorRole === "supervisor" ? "Supervisor" : "You")}
+                </span>
+                <span className="ml-1 text-gray-400">· {fmtCommentTime(c.createdAt)}</span>
+              </p>
+              <p className="mt-0.5 text-gray-800 whitespace-pre-wrap">{c.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-start gap-2">
+        <textarea
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Reply privately to your supervisor…"
+          disabled={posting}
+          maxLength={1000}
+          className="flex-1 resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:border-[#4b7eff] focus:outline-none disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim() || posting}
+          className="shrink-0 rounded-lg bg-[#4b7eff] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#3a6bef] disabled:opacity-50 transition-colors"
+        >
+          {posting ? "…" : "Post"}
+        </button>
+      </div>
+      {err && <p className="mt-1 text-[11px] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 function StatusPill({ status }: { status?: string }) {
   if (!status) return null;
   const map: Record<string, string> = {
@@ -83,6 +200,11 @@ function AssessmentInner() {
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [presentingProblem, setPresentingProblem] = useState("");
   const [initialAssessment, setInitialAssessment] = useState("");
+
+  // Assessment identity + private comment thread. Comments require an
+  // already-saved assessment — `assessmentId` stays null until then.
+  const [assessmentId, setAssessmentId] = useState<string | null>(null);
+  const [assessmentComments, setAssessmentComments] = useState<AssessmentComment[]>([]);
 
   // Snapshot of last-saved values to detect dirty form
   const savedRef = useRef({ chiefComplaint: "", presentingProblem: "", initialAssessment: "" });
@@ -130,13 +252,19 @@ function AssessmentInner() {
             initialAssessment: a.initialAssessment || "",
           };
           if (a.updatedAt) setLastSavedAt(a.updatedAt);
+          setAssessmentId(a._id ? String(a._id) : null);
+          setAssessmentComments(Array.isArray(a.comments) ? a.comments : []);
           setHasExisting(true);
           setEditing(false);
         } else {
+          setAssessmentId(null);
+          setAssessmentComments([]);
           setHasExisting(false);
           setEditing(true);
         }
       } else {
+        setAssessmentId(null);
+        setAssessmentComments([]);
         setHasExisting(false);
         setEditing(true);
       }
@@ -183,6 +311,10 @@ function AssessmentInner() {
         setLastSavedAt(res.assessment.updatedAt);
       } else {
         setLastSavedAt(new Date().toISOString());
+      }
+      if (res?.assessment?._id) setAssessmentId(String(res.assessment._id));
+      if (Array.isArray(res?.assessment?.comments)) {
+        setAssessmentComments(res.assessment.comments);
       }
       setHasExisting(true);
       setEditing(false);
@@ -430,6 +562,23 @@ console.log(therapistName,"patientObj")
             initialAssessment={initialAssessment}
             onEdit={startEdit}
           />
+        )}
+
+        {/* Private therapist↔supervisor thread on this session summary.
+            Only rendered once the assessment has been saved. */}
+        {assessmentId && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Private comments</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Visible only to you and your supervisor.
+            </p>
+            <AssessmentCommentThread
+              assessmentId={assessmentId}
+              comments={assessmentComments}
+              token={token}
+              onCommentAdded={(c) => setAssessmentComments((prev) => [...prev, c])}
+            />
+          </section>
         )}
       </div>
     </div>

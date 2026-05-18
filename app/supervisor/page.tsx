@@ -12,6 +12,7 @@ type Stats = {
   totalTherapists: number;
   totalSessions: number;
   sessionsThisMonth: number;
+  activeThisMonth: number;
 };
 
 type Therapist = {
@@ -74,6 +75,7 @@ type SharedAssessment = {
   createdAt?: string;
   updatedAt?: string;
   appointment?: { _id: string; start?: string; end?: string; mode?: string; status?: string } | null;
+  comments?: NoteComment[];
 };
 
 type SharedTreatmentPlan = {
@@ -87,6 +89,7 @@ type SharedTreatmentPlan = {
   meta?: { treatmentApproach?: string } & Record<string, any>;
   createdAt?: string;
   updatedAt?: string;
+  comments?: NoteComment[];
 };
 
 type SharedRecordItem = {
@@ -193,6 +196,92 @@ function KpiCard({
   );
 }
 
+/* ── reusable private comment thread ────────────────────────── */
+function CommentThread({
+  comments,
+  onSubmit,
+  placeholder = "Leave a private comment for the therapist…",
+}: {
+  comments: NoteComment[];
+  onSubmit: (text: string) => Promise<NoteComment | null>;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setErr("");
+    setPosting(true);
+    try {
+      const saved = await onSubmit(trimmed);
+      if (saved) setText("");
+    } catch (e: any) {
+      setErr(e?.message || "Could not post comment.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-3">
+      <p className="mb-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
+        </svg>
+        Private thread · therapist & you
+      </p>
+      {comments.length > 0 && (
+        <ul className="mb-2 space-y-1.5">
+          {comments.map((c, i) => (
+            <li
+              key={c._id || i}
+              className={[
+                "rounded-lg px-2.5 py-1.5 text-xs",
+                c.authorRole === "supervisor"
+                  ? "bg-[#4b7eff]/10 ring-1 ring-[#4b7eff]/20"
+                  : "bg-white ring-1 ring-gray-200",
+              ].join(" ")}
+            >
+              <p className="text-[10px] text-gray-500">
+                <span className="font-bold text-gray-700">
+                  {c.authorName ||
+                    (c.authorRole === "supervisor" ? "Supervisor" : "Therapist")}
+                </span>
+                <span className="ml-1 text-gray-400">· {fmtDateTime(c.createdAt)}</span>
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap text-gray-800">{c.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex items-start gap-2">
+        <textarea
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={placeholder}
+          disabled={posting}
+          maxLength={1000}
+          className="flex-1 resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:border-[#4b7eff] focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30 disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim() || posting}
+          className="shrink-0 rounded-lg bg-[#4b7eff] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#3a6bef] disabled:opacity-50 transition-colors"
+        >
+          {posting ? "…" : "Post"}
+        </button>
+      </div>
+      {err && <p className="mt-1 text-[11px] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 /* ── shared-note card with private comment thread ───────────── */
 function SharedNoteCard({
   note,
@@ -207,49 +296,12 @@ function SharedNoteCard({
   token: string | null;
   onCommentAdded: (noteId: string, comment: NoteComment) => void;
 }) {
-  const [text, setText] = useState("");
-  const [posting, setPosting] = useState(false);
-  const [err, setErr] = useState("");
-
   const subj = note.subjective || "";
   const obj = note.objective || "";
   const ass = note.assessment || note.diagnosis || "";
   const plan = note.plan || note.treatment || note.activity || "";
   const extra = note.additionalNotes || note.body || "";
   const comments = note.comments || [];
-
-  async function submitComment() {
-    const trimmed = text.trim();
-    if (!trimmed || !note._id) return;
-    setErr("");
-    setPosting(true);
-    try {
-      const res: any = await api(
-        `api/record-requests/notes/${patientId}/${therapistId}/${note._id}/comment`,
-        {
-          method: "POST",
-          headers: {
-            ...authHeader(token || undefined),
-            "Content-Type": "application/json",
-          } as HeadersInit,
-          body: JSON.stringify({ text: trimmed }),
-        }
-      );
-      onCommentAdded(
-        note._id,
-        res?.comment || {
-          text: trimmed,
-          authorRole: "supervisor",
-          createdAt: new Date().toISOString(),
-        }
-      );
-      setText("");
-    } catch (e: any) {
-      setErr(e?.message || "Could not post comment.");
-    } finally {
-      setPosting(false);
-    }
-  }
 
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
@@ -288,60 +340,30 @@ function SharedNoteCard({
         )}
       </div>
 
-      {/* Private comment thread */}
-      <div className="mt-3 border-t border-gray-100 pt-3">
-        <p className="mb-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
-          </svg>
-          Private thread · therapist & you
-        </p>
-        {comments.length > 0 && (
-          <ul className="mb-2 space-y-1.5">
-            {comments.map((c, i) => (
-              <li
-                key={c._id || i}
-                className={[
-                  "rounded-lg px-2.5 py-1.5 text-xs",
-                  c.authorRole === "supervisor"
-                    ? "bg-[#4b7eff]/10 ring-1 ring-[#4b7eff]/20"
-                    : "bg-white ring-1 ring-gray-200",
-                ].join(" ")}
-              >
-                <p className="text-[10px] text-gray-500">
-                  <span className="font-bold text-gray-700">
-                    {c.authorName ||
-                      (c.authorRole === "supervisor" ? "Supervisor" : "Therapist")}
-                  </span>
-                  <span className="ml-1 text-gray-400">· {fmtDateTime(c.createdAt)}</span>
-                </p>
-                <p className="mt-0.5 whitespace-pre-wrap text-gray-800">{c.text}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="flex items-start gap-2">
-          <textarea
-            rows={2}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Leave a private comment for the therapist…"
-            disabled={posting}
-            maxLength={1000}
-            className="flex-1 resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:border-[#4b7eff] focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30 disabled:opacity-60"
-          />
-          <button
-            type="button"
-            onClick={submitComment}
-            disabled={!text.trim() || posting}
-            className="shrink-0 rounded-lg bg-[#4b7eff] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-[#3a6bef] disabled:opacity-50 transition-colors"
-          >
-            {posting ? "…" : "Post"}
-          </button>
-        </div>
-        {err && <p className="mt-1 text-[11px] text-red-600">{err}</p>}
-      </div>
+      <CommentThread
+        comments={comments}
+        onSubmit={async (trimmed) => {
+          if (!note._id) return null;
+          const res: any = await api(
+            `api/record-requests/notes/${patientId}/${therapistId}/${note._id}/comment`,
+            {
+              method: "POST",
+              headers: {
+                ...authHeader(token || undefined),
+                "Content-Type": "application/json",
+              } as HeadersInit,
+              body: JSON.stringify({ text: trimmed }),
+            }
+          );
+          const saved: NoteComment = res?.comment || {
+            text: trimmed,
+            authorRole: "supervisor",
+            createdAt: new Date().toISOString(),
+          };
+          onCommentAdded(note._id, saved);
+          return saved;
+        }}
+      />
     </div>
   );
 }
@@ -359,6 +381,8 @@ function SessionsDrawer({
   const [patients, setPatients] = useState<DrawerPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  type DrawerTab = "notes" | "assessments" | "plan";
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>("notes");
 
   const avatarUrl = avatarSrc(therapist.profilePicture);
   const initials = therapist.name
@@ -541,74 +565,161 @@ function SessionsDrawer({
                   </button>
 
                   {open && (
-                    <div className="space-y-4 border-t border-gray-100 bg-gray-50/60 p-4">
-                      {/* Treatment plan */}
-                      <ArtifactSection
-                        title="Treatment plan"
-                        color="emerald"
-                        empty={!row.treatmentPlan}
-                        emptyText="No treatment plan yet."
-                      >
-                        {row.treatmentPlan && (
-                          <TreatmentPlanCard plan={row.treatmentPlan} />
-                        )}
-                      </ArtifactSection>
+                    <div className="border-t border-gray-100 bg-gray-50/60">
+                      {/* Tab switcher */}
+                      <div className="flex items-center gap-1 border-b border-gray-100 bg-white px-2 sm:px-3">
+                        {([
+                          { key: "notes", label: "SOAP notes", count: noteCount, color: "blue" as const },
+                          { key: "assessments", label: "Sessions", count: assessmentCount, color: "violet" as const },
+                          { key: "plan", label: "Treatment plan", count: hasPlan ? 1 : 0, color: "emerald" as const },
+                        ] as { key: DrawerTab; label: string; count: number; color: "blue" | "violet" | "emerald" }[]).map((tab) => {
+                          const isActive = drawerTab === tab.key;
+                          const dotColor = ARTIFACT_PALETTE[tab.color].bar;
+                          return (
+                            <button
+                              key={tab.key}
+                              type="button"
+                              onClick={() => setDrawerTab(tab.key)}
+                              className={[
+                                "relative px-3 py-2.5 text-xs font-semibold transition-colors",
+                                isActive ? "text-gray-900" : "text-gray-500 hover:text-gray-800",
+                              ].join(" ")}
+                            >
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+                                {tab.label}
+                                <span
+                                  className={[
+                                    "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                                    isActive ? "bg-gray-900/5 text-gray-700" : "bg-gray-100 text-gray-500",
+                                  ].join(" ")}
+                                >
+                                  {tab.count}
+                                </span>
+                              </span>
+                              {isActive && (
+                                <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full ${dotColor}`} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                      {/* Session summaries / assessments */}
-                      <ArtifactSection
-                        title={`Session summaries${assessmentCount ? ` · ${assessmentCount}` : ""}`}
-                        color="violet"
-                        empty={assessmentCount === 0}
-                        emptyText="No session summaries recorded yet."
-                      >
-                        <div className="space-y-2">
-                          {(row.assessments || []).map((a) => (
-                            <AssessmentCard key={a._id} a={a} />
-                          ))}
-                        </div>
-                      </ArtifactSection>
-
-                      {/* SOAP notes */}
-                      <ArtifactSection
-                        title={`SOAP notes${noteCount ? ` · ${noteCount}` : ""}`}
-                        color="blue"
-                        empty={noteCount === 0}
-                        emptyText="No SOAP notes recorded yet."
-                      >
-                        <div className="space-y-2">
-                          {(row.notes || []).map((n, i) => (
-                            <SharedNoteCard
-                              key={n._id || i}
-                              note={n}
-                              patientId={pid}
-                              therapistId={therapist._id}
+                      {/* Tab body */}
+                      <div className="p-4">
+                        {drawerTab === "plan" && (
+                          row.treatmentPlan ? (
+                            <TreatmentPlanCard
+                              plan={row.treatmentPlan}
                               token={token}
-                              onCommentAdded={(noteId, comment) => {
+                              onCommentAdded={(_planId, comment) => {
                                 setPatients((prev) =>
                                   prev.map((it) =>
-                                    String(it.patient._id) !== pid
+                                    String(it.patient._id) !== pid || !it.treatmentPlan
                                       ? it
                                       : {
                                           ...it,
-                                          notes: it.notes.map((nn) =>
-                                            nn._id === noteId
-                                              ? {
-                                                  ...nn,
-                                                  comments: [
-                                                    ...(nn.comments || []),
-                                                    comment,
-                                                  ],
-                                                }
-                                              : nn
-                                          ),
+                                          treatmentPlan: {
+                                            ...it.treatmentPlan,
+                                            comments: [
+                                              ...(it.treatmentPlan.comments || []),
+                                              comment,
+                                            ],
+                                          },
                                         }
                                   )
                                 );
                               }}
                             />
-                          ))}
-                        </div>
-                      </ArtifactSection>
+                          ) : (
+                            <p className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-3 text-xs italic text-gray-500">
+                              No treatment plan yet.
+                            </p>
+                          )
+                        )}
+
+                        {drawerTab === "assessments" && (
+                          assessmentCount === 0 ? (
+                            <p className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-3 text-xs italic text-gray-500">
+                              No session summaries recorded yet.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {(row.assessments || []).map((a) => (
+                                <AssessmentCard
+                                  key={a._id}
+                                  a={a}
+                                  token={token}
+                                  onCommentAdded={(assessmentId, comment) => {
+                                    setPatients((prev) =>
+                                      prev.map((it) =>
+                                        String(it.patient._id) !== pid
+                                          ? it
+                                          : {
+                                              ...it,
+                                              assessments: (it.assessments || []).map((aa) =>
+                                                aa._id === assessmentId
+                                                  ? {
+                                                      ...aa,
+                                                      comments: [
+                                                        ...(aa.comments || []),
+                                                        comment,
+                                                      ],
+                                                    }
+                                                  : aa
+                                              ),
+                                            }
+                                      )
+                                    );
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )
+                        )}
+
+                        {drawerTab === "notes" && (
+                          noteCount === 0 ? (
+                            <p className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-3 text-xs italic text-gray-500">
+                              No SOAP notes recorded yet.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {(row.notes || []).map((n, i) => (
+                                <SharedNoteCard
+                                  key={n._id || i}
+                                  note={n}
+                                  patientId={pid}
+                                  therapistId={therapist._id}
+                                  token={token}
+                                  onCommentAdded={(noteId, comment) => {
+                                    setPatients((prev) =>
+                                      prev.map((it) =>
+                                        String(it.patient._id) !== pid
+                                          ? it
+                                          : {
+                                              ...it,
+                                              notes: it.notes.map((nn) =>
+                                                nn._id === noteId
+                                                  ? {
+                                                      ...nn,
+                                                      comments: [
+                                                        ...(nn.comments || []),
+                                                        comment,
+                                                      ],
+                                                    }
+                                                  : nn
+                                              ),
+                                            }
+                                      )
+                                    );
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -703,15 +814,9 @@ function SupervisorDashboardInner() {
     [therapists, search]
   );
 
-  // Derive an "active this month" count of therapists for the hero
-  const activeThisMonth = useMemo(() => {
-    const now = new Date();
-    const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1);
-    return therapists.filter((t) => {
-      const d = t.lastSessionDate ? new Date(t.lastSessionDate) : null;
-      return d && d >= monthAgo;
-    }).length;
-  }, [therapists]);
+  // Comes from the backend now — counts distinct therapists with at least one
+  // non-cancelled appointment scheduled within the current calendar month.
+  const activeThisMonth = stats?.activeThisMonth ?? 0;
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
@@ -798,7 +903,7 @@ function SupervisorDashboardInner() {
             <KpiCard
               label="Active this month"
               value={activeThisMonth}
-              sub="wrote at least one note"
+              sub="had at least one appointment"
               icon={<IcoCalendar />}
               color="#0f766e"
             />
@@ -812,7 +917,7 @@ function SupervisorDashboardInner() {
             <KpiCard
               label="Total sessions"
               value={stats.totalSessions}
-              sub="all-time SOAP notes"
+              sub="all-time appointments"
               icon={<IcoShare />}
               color="#d97706"
             />
@@ -1120,7 +1225,28 @@ function SupervisorDashboardInner() {
                               emptyText="No treatment plan yet."
                             >
                               {s.treatmentPlan && (
-                                <TreatmentPlanCard plan={s.treatmentPlan} />
+                                <TreatmentPlanCard
+                                  plan={s.treatmentPlan}
+                                  token={token}
+                                  onCommentAdded={(_planId, comment) => {
+                                    setShared((prev) =>
+                                      prev.map((item) =>
+                                        item.shareId !== s.shareId || !item.treatmentPlan
+                                          ? item
+                                          : {
+                                              ...item,
+                                              treatmentPlan: {
+                                                ...item.treatmentPlan,
+                                                comments: [
+                                                  ...(item.treatmentPlan.comments || []),
+                                                  comment,
+                                                ],
+                                              },
+                                            }
+                                      )
+                                    );
+                                  }}
+                                />
                               )}
                             </ArtifactSection>
 
@@ -1133,7 +1259,33 @@ function SupervisorDashboardInner() {
                             >
                               <div className="space-y-2">
                                 {(s.assessments || []).map((a) => (
-                                  <AssessmentCard key={a._id} a={a} />
+                                  <AssessmentCard
+                                    key={a._id}
+                                    a={a}
+                                    token={token}
+                                    onCommentAdded={(assessmentId, comment) => {
+                                      setShared((prev) =>
+                                        prev.map((item) =>
+                                          item.shareId !== s.shareId
+                                            ? item
+                                            : {
+                                                ...item,
+                                                assessments: (item.assessments || []).map((aa) =>
+                                                  aa._id === assessmentId
+                                                    ? {
+                                                        ...aa,
+                                                        comments: [
+                                                          ...(aa.comments || []),
+                                                          comment,
+                                                        ],
+                                                      }
+                                                    : aa
+                                                ),
+                                              }
+                                        )
+                                      );
+                                    }}
+                                  />
                                 ))}
                               </div>
                             </ArtifactSection>
@@ -1282,10 +1434,19 @@ function ArtifactSection({
   );
 }
 
-function TreatmentPlanCard({ plan }: { plan: SharedTreatmentPlan }) {
+function TreatmentPlanCard({
+  plan,
+  token,
+  onCommentAdded,
+}: {
+  plan: SharedTreatmentPlan;
+  token?: string | null;
+  onCommentAdded?: (planId: string, comment: NoteComment) => void;
+}) {
   const goals = (plan.goals || []).filter((g) => (g.title || "").trim());
   const interventions = (plan.interventions || []).filter((it) => (it.title || "").trim());
   const treatmentApproach = plan.meta?.treatmentApproach;
+  const comments = plan.comments || [];
   return (
     <div className="rounded-xl border border-emerald-100 bg-white p-4">
       <div className="flex items-center justify-between gap-2">
@@ -1354,11 +1515,47 @@ function TreatmentPlanCard({ plan }: { plan: SharedTreatmentPlan }) {
           </ul>
         </div>
       )}
+
+      {onCommentAdded && (
+        <CommentThread
+          comments={comments}
+          placeholder="Comment on this treatment plan…"
+          onSubmit={async (trimmed) => {
+            const res: any = await api(
+              `api/record-requests/treatment-plans/${plan._id}/comment`,
+              {
+                method: "POST",
+                headers: {
+                  ...authHeader(token || undefined),
+                  "Content-Type": "application/json",
+                } as HeadersInit,
+                body: JSON.stringify({ text: trimmed }),
+              }
+            );
+            const saved: NoteComment = res?.comment || {
+              text: trimmed,
+              authorRole: "supervisor",
+              createdAt: new Date().toISOString(),
+            };
+            onCommentAdded(plan._id, saved);
+            return saved;
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function AssessmentCard({ a }: { a: SharedAssessment }) {
+function AssessmentCard({
+  a,
+  token,
+  onCommentAdded,
+}: {
+  a: SharedAssessment;
+  token?: string | null;
+  onCommentAdded?: (assessmentId: string, comment: NoteComment) => void;
+}) {
+  const comments = a.comments || [];
   return (
     <div className="rounded-xl border border-violet-100 bg-white p-4">
       <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">
@@ -1371,6 +1568,33 @@ function AssessmentCard({ a }: { a: SharedAssessment }) {
           <ReadField label="Initial assessment" value={a.initialAssessment} />
         </div>
       </div>
+
+      {onCommentAdded && (
+        <CommentThread
+          comments={comments}
+          placeholder="Comment on this session summary…"
+          onSubmit={async (trimmed) => {
+            const res: any = await api(
+              `api/record-requests/assessments/${a._id}/comment`,
+              {
+                method: "POST",
+                headers: {
+                  ...authHeader(token || undefined),
+                  "Content-Type": "application/json",
+                } as HeadersInit,
+                body: JSON.stringify({ text: trimmed }),
+              }
+            );
+            const saved: NoteComment = res?.comment || {
+              text: trimmed,
+              authorRole: "supervisor",
+              createdAt: new Date().toISOString(),
+            };
+            onCommentAdded(a._id, saved);
+            return saved;
+          }}
+        />
+      )}
     </div>
   );
 }

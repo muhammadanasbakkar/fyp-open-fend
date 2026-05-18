@@ -9,6 +9,93 @@ import { api, authHeader } from "@/lib/api";
 type KV   = { label: string; count: number };
 type Monthly = { label: string; count: number };
 
+// Format a Date as a calendar-local YYYY-MM-DD string. We intentionally
+// don't use toISOString() here: that converts to UTC, which shifts the
+// date back a day for any timezone east of UTC (e.g. PKT → "Mar 1 local"
+// becomes "Feb 28 UTC") and breaks the month-bucket math on the server.
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Date range filter for chart-driving reports (supervisor + therapist).
+// Pure-controlled: parent owns `from` / `to` state and refetches when they
+// change. The four presets cover the common windows; "Custom" reveals raw
+// date inputs.
+function DateRangeFilter({
+  from,
+  to,
+  onChange,
+}: {
+  from: string;
+  to: string;
+  onChange: (range: { from: string; to: string }) => void;
+}) {
+  function rangeForMonths(monthsBack: number) {
+    const now = new Date();
+    const fromDate = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
+    return { from: localDateStr(fromDate), to: localDateStr(now) };
+  }
+
+  const presets: { label: string; months: number }[] = [
+    { label: "3M", months: 3 },
+    { label: "6M", months: 6 },
+    { label: "12M", months: 12 },
+    { label: "24M", months: 24 },
+  ];
+
+  // Match the active preset by checking whether the current range equals
+  // what each preset would produce. Falls back to "Custom" when nothing matches.
+  const activePreset = presets.find(p => {
+    const r = rangeForMonths(p.months);
+    return r.from === from && r.to === to;
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 print:hidden">
+      <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+        {presets.map(p => {
+          const isActive = activePreset?.label === p.label;
+          return (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => onChange(rangeForMonths(p.months))}
+              className={[
+                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                isActive ? "bg-[#4b7eff] text-white" : "text-gray-600 hover:bg-gray-50",
+              ].join(" ")}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2.5 py-1 shadow-sm">
+        <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">From</label>
+        <input
+          type="date"
+          value={from}
+          max={to || undefined}
+          onChange={(e) => onChange({ from: e.target.value, to })}
+          className="bg-transparent text-xs text-gray-700 focus:outline-none"
+        />
+        <span className="text-gray-300">→</span>
+        <label className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">To</label>
+        <input
+          type="date"
+          value={to}
+          min={from || undefined}
+          onChange={(e) => onChange({ from, to: e.target.value })}
+          className="bg-transparent text-xs text-gray-700 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── colour palette ─────────────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
   confirmed: "bg-emerald-500", completed: "bg-blue-500",
@@ -118,6 +205,52 @@ function DonutChart({ data, title }: { data: KV[]; title: string }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Stacked bar chart: shows SOAP-on-bottom + Session-on-top per month bucket.
+// Used by the supervisor report so the user can see the SOAP vs Session
+// composition of each month at a glance.
+function StackedNotesChart({
+  data,
+  title,
+}: {
+  data: { label: string; soap: number; session: number; total: number }[];
+  title: string;
+}) {
+  const max = Math.max(...data.map(d => d.total), 1);
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <p className="mb-1 text-sm font-semibold text-gray-800">{title}</p>
+      <div className="mb-3 flex items-center gap-4 text-[11px]">
+        <span className="flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-[#4b7eff]" /> SOAP
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-[#7c3aed]" /> Session
+        </span>
+      </div>
+      <div className="flex items-end gap-2 h-36">
+        {data.map((d, i) => {
+          const soapPct = (d.soap / max) * 100;
+          const sessionPct = (d.session / max) * 100;
+          return (
+            <div key={i} className="flex flex-1 flex-col items-center gap-1">
+              <span className="text-[10px] text-gray-500">{d.total || ""}</span>
+              <div
+                className="flex w-full flex-col-reverse overflow-hidden rounded-t-md"
+                style={{ height: `${Math.max(((d.total) / max) * 100, d.total > 0 ? 4 : 0)}%` }}
+                title={`${d.label} — SOAP ${d.soap}, Session ${d.session}`}
+              >
+                <div className="w-full bg-[#4b7eff]" style={{ height: `${(soapPct / (soapPct + sessionPct || 1)) * 100}%` }} />
+                <div className="w-full bg-[#7c3aed]" style={{ height: `${(sessionPct / (soapPct + sessionPct || 1)) * 100}%` }} />
+              </div>
+              <span className="text-[10px] text-gray-400 whitespace-nowrap">{d.label}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -466,35 +599,19 @@ function TherapistReport({ data }: { data: any }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Appointments" value={data.summary.totalAppointments} />
         <StatCard label="This Month"         value={data.summary.apptThisMonth} />
-        <StatCard label="Upcoming"           value={data.summary.upcomingAppts} sub="confirmed" />
+        <StatCard label="Upcoming"           value={data.summary.upcomingAppts} sub="scheduled" />
         <StatCard label="Patients Seen"      value={data.summary.totalPatients} />
-        <StatCard label="SOAP Notes"         value={data.summary.totalNotes} />
-        <StatCard label="Signed Notes"       value={data.summary.signedNotes} />
-        <StatCard label="Draft Notes"        value={data.summary.draftNotes} />
-        <StatCard label="Notes Signed Rate"  value={`${data.summary.notesSignedRate}%`} />
+        <StatCard label="Ongoing Patients"   value={data.summary.ongoingPatients} sub="active in last 60 days" />
+        <StatCard label="SOAP Notes"         value={data.summary.soapNotes} />
+        <StatCard label="Session Notes"      value={data.summary.sessionNotes} sub="session summaries" />
       </div>
 
       <SectionTitle>Trends & Breakdown</SectionTitle>
       <div className="grid gap-5 lg:grid-cols-2">
         <BarChart data={data.monthlyAppointments} title="Appointments — Last 6 Months" />
-        <BarChart data={data.monthlyNotes} title="SOAP Notes — Last 6 Months" color="bg-[#7c3aed]" />
+        <BarChart data={data.monthlyNotes} title="Notes & Session Summaries — Last 6 Months" color="bg-[#7c3aed]" />
         <DonutChart data={data.byStatus} title="Appointments by Status" />
         <DonutChart data={data.byMode}   title="Appointments by Mode" />
-      </div>
-
-      <SectionTitle>Notes Quality</SectionTitle>
-      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-gray-600">Signed vs Draft</span>
-          <span className="text-sm font-semibold text-gray-800">{data.summary.notesSignedRate}% signed</span>
-        </div>
-        <div className="h-4 w-full rounded-full bg-gray-100 overflow-hidden">
-          <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${data.summary.notesSignedRate}%` }} />
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-gray-500">
-          <span>Signed: {data.summary.signedNotes}</span>
-          <span>Draft: {data.summary.draftNotes}</span>
-        </div>
       </div>
     </div>
   );
@@ -507,15 +624,39 @@ function SupervisorReport({ data }: { data: any }) {
       <SectionTitle>Supervision Overview</SectionTitle>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard label="Enrolled Therapists" value={data.summary.totalTherapists} />
-        <StatCard label="Total Session Notes" value={data.summary.totalNotes} />
-        <StatCard label="Notes This Month"    value={data.summary.notesThisMonth} />
-        <StatCard label="Signed Notes"        value={data.summary.signedNotes} />
-        <StatCard label="Draft Notes"         value={data.summary.draftNotes} />
-        <StatCard label="Signed Rate"         value={`${data.summary.signedRate}%`} />
+        <StatCard label="Ongoing Patients"    value={data.summary.ongoingPatients} sub="active in last 60 days" />
+        <StatCard label="Notes This Month"    value={data.summary.notesThisMonth} sub="SOAP + session" />
+        <StatCard label="SOAP Notes"          value={data.summary.soapNotes} sub="all time" />
+        <StatCard label="Session Notes"       value={data.summary.sessionNotes} sub="session summaries" />
       </div>
 
       <SectionTitle>Monthly Notes Trend</SectionTitle>
-      <BarChart data={data.monthly} title="Session Notes — Last 6 Months" color="bg-[#7c3aed]" />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <StackedNotesChart
+          data={data.monthlyDetailed || []}
+          title="Notes by Month — SOAP vs Session"
+        />
+        <DonutChart
+          data={[
+            { label: "SOAP Notes", count: data.summary.soapNotes || 0 },
+            { label: "Session Notes", count: data.summary.sessionNotes || 0 },
+          ]}
+          title="Notes Composition — All Time"
+        />
+      </div>
+
+      {(data.therapistStats || []).length > 0 && (
+        <>
+          <SectionTitle>Top Therapists by Note Volume</SectionTitle>
+          <HBarChart
+            data={[...(data.therapistStats || [])]
+              .sort((a: any, b: any) => b.totalNotes - a.totalNotes)
+              .slice(0, 8)
+              .map((t: any) => ({ label: t.name || "—", count: t.totalNotes || 0 }))}
+            title="Total notes per therapist (top 8)"
+          />
+        </>
+      )}
 
       <SectionTitle>Therapist Performance</SectionTitle>
       <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm">
@@ -524,8 +665,8 @@ function SupervisorReport({ data }: { data: any }) {
             <tr className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-400">
               <th className="px-4 py-3 text-left">Therapist</th>
               <th className="px-4 py-3 text-left hidden sm:table-cell">Specializations</th>
-              <th className="px-4 py-3 text-center">Total Notes</th>
-              <th className="px-4 py-3 text-center">Signed</th>
+              <th className="px-4 py-3 text-center">SOAP Notes</th>
+              <th className="px-4 py-3 text-center">Session Notes</th>
               <th className="px-4 py-3 text-left hidden md:table-cell">Activity</th>
             </tr>
           </thead>
@@ -540,9 +681,9 @@ function SupervisorReport({ data }: { data: any }) {
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center font-semibold text-gray-800">{t.totalNotes}</td>
+                <td className="px-4 py-3 text-center font-semibold text-gray-800">{t.soapNotes}</td>
                 <td className="px-4 py-3 text-center">
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{t.signedNotes}</span>
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-700">{t.sessionNotes}</span>
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell">
                   <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
@@ -704,29 +845,130 @@ export default function ReportsPage() {
   return <Protected><ReportsInner /></Protected>;
 }
 
+// Default: last 6 calendar months, ending today. Uses local-calendar dates
+// (see localDateStr above) so the server interprets them the same way the
+// user sees them in the date pickers.
+function defaultRange(): { from: string; to: string } {
+  const now = new Date();
+  const fromDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  return { from: localDateStr(fromDate), to: localDateStr(now) };
+}
+
+// Print-only document header. Rendered hidden on screen and shown in the
+// printed output so the report has a proper title, role / user context, and
+// the date range it was generated for.
+function PrintHeader({
+  roleLabel,
+  user,
+  range,
+}: {
+  roleLabel: string;
+  user: any;
+  range: { from: string; to: string };
+}) {
+  const fmtLong = (s: string) => {
+    if (!s) return "—";
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+  const generatedAt = new Date().toLocaleString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <div className="hidden print:block">
+      <div className="border-b-2 border-gray-800 pb-3 mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">
+          {roleLabel} Report
+        </p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900">
+          Therakonnect — Reports & Analytics
+        </h1>
+        <div className="mt-2 grid grid-cols-3 gap-3 text-[11px] text-gray-700">
+          <div>
+            <p className="font-semibold uppercase tracking-wide text-gray-500">Prepared for</p>
+            <p className="mt-0.5">{user?.name || "—"}</p>
+            <p className="text-gray-500">{user?.email || ""}</p>
+          </div>
+          <div>
+            <p className="font-semibold uppercase tracking-wide text-gray-500">Reporting period</p>
+            <p className="mt-0.5">{fmtLong(range.from)}</p>
+            <p>to {fmtLong(range.to)}</p>
+          </div>
+          <div>
+            <p className="font-semibold uppercase tracking-wide text-gray-500">Generated</p>
+            <p className="mt-0.5">{generatedAt}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReportsInner() {
   const { token, user } = useAuth();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr]         = useState("");
+  const [range, setRange]     = useState<{ from: string; to: string }>(defaultRange);
 
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    api("api/reports", { headers: authHeader(token) as HeadersInit })
+    const qs = new URLSearchParams();
+    if (range.from) qs.set("from", range.from);
+    if (range.to) qs.set("to", range.to);
+    const url = `api/reports${qs.toString() ? `?${qs.toString()}` : ""}`;
+    api(url, { headers: authHeader(token) as HeadersInit })
       .then(setData)
       .catch((e: any) => setErr(e.message || "Failed to load report."))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, range.from, range.to]);
 
   const roleLabel = ROLE_LABELS[user?.role || ""] || user?.role || "";
+  // Only the reports that actually use a monthly chart respond to filtering.
+  const showFilter = data?.role === "supervisor" || data?.role === "therapist";
 
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-6">
+    <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white print:bg-white">
+      {/* Print-specific stylesheet:
+          - Force Chrome/Edge to preserve background colors in chart bars and
+            chips (otherwise everything renders as outlines).
+          - Tighten margins so the report fits on standard A4/Letter.
+          - Avoid splitting individual cards / charts / table rows across pages. */}
+      <style jsx global>{`
+        @media print {
+          @page { margin: 12mm; }
+          html, body { background: #ffffff !important; }
+          .print\\:bg-white { background: #ffffff !important; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          .rounded-2xl, .rounded-xl,
+          table, tr,
+          section, h1, h2 {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+          h1, h2 { page-break-after: avoid; }
+        }
+      `}</style>
+
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-6 print:px-0 print:py-0">
+        <PrintHeader roleLabel={roleLabel} user={user} range={range} />
 
         {/* header */}
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-[#4b7eff]/8 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4b7eff]">
               <span className="h-1.5 w-1.5 rounded-full bg-[#4b7eff]" />
@@ -737,15 +979,13 @@ function ReportsInner() {
               Data as of {new Date().toLocaleDateString("en-PK", { day: "2-digit", month: "long", year: "numeric" })}
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors print:hidden"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            Print Report
-          </button>
+          {showFilter && (
+            <DateRangeFilter
+              from={range.from}
+              to={range.to}
+              onChange={setRange}
+            />
+          )}
         </div>
 
         {err && (

@@ -182,6 +182,10 @@ type ApptStats = {
   completed: number;
   pending: number;
   nextSession: any | null;
+  // Future-scheduled appointments awaiting therapist confirmation. Patients
+  // need this surfaced because a "pending" booking still needs to be approved
+  // before they should rely on it.
+  pendingList: any[];
 };
 
 function useAppointmentStats(token: string | null) {
@@ -195,17 +199,48 @@ function useAppointmentStats(token: string | null) {
         });
         const list: any[] = Array.isArray(data) ? data : data?.appointments || [];
         const now = Date.now();
+
+        // Upcoming = scheduled in the future and not cancelled.
+        // A cancelled appointment is not "upcoming" even if its date hasn't passed.
         const upcomingAppts = list
-          .filter((a: any) => +new Date(a.start || a.date) > now)
+          .filter((a: any) => {
+            const start = +new Date(a.start || a.date);
+            return start > now && a.status !== "cancelled";
+          })
           .sort((a: any, b: any) => +new Date(a.start || a.date) - +new Date(b.start || b.date));
-        const completed = list.filter((a: any) => a.status === "completed").length;
-        const pending = list.filter((a: any) => a.status === "pending").length;
+
+        // Completed = any past, non-cancelled appointment. Therapists rarely
+        // flip "confirmed" → "completed" after a session, and past "pending"
+        // rows still represent a date that's now in the past — treating them
+        // as completed makes the three KPIs reconcile (upcoming + completed
+        // = total) and matches what the patient sees in their history.
+        const completed = list.filter((a: any) => {
+          const start = +new Date(a.start || a.date);
+          return start <= now && a.status !== "cancelled";
+        }).length;
+
+        // Pending = the therapist hasn't confirmed yet. We only surface
+        // future-dated pending appointments to the patient (a past-dated
+        // pending row almost certainly means the booking was never acted on
+        // and isn't actionable anymore).
+        const pendingList = list
+          .filter((a: any) => {
+            const start = +new Date(a.start || a.date);
+            return a.status === "pending" && start > now;
+          })
+          .sort((a: any, b: any) => +new Date(a.start || a.date) - +new Date(b.start || b.date));
+        const pending = pendingList.length;
+
+        // Total excludes cancelled sessions so the three KPI numbers reconcile.
+        const total = list.filter((a: any) => a.status !== "cancelled").length;
+
         setStats({
           upcoming: upcomingAppts.length,
-          total: list.length,
+          total,
           completed,
           pending,
           nextSession: upcomingAppts[0] || null,
+          pendingList,
         });
       } catch { /* silent */ }
     })();
@@ -369,6 +404,71 @@ function PatientDashboard({ user, token }: { user: any; token: string | null }) 
           </div>
         </div>
       )}
+
+      {/* Pending confirmations — sessions the therapist hasn't approved yet.
+          Surfaced separately from "Upcoming" so the patient knows these
+          aren't guaranteed yet. */}
+      {apptStats?.pendingList?.length ? (
+        <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-100/60 px-5 py-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200/70 text-amber-700">
+                {Icons.pending}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Awaiting therapist confirmation
+                </p>
+                <p className="text-[11px] text-amber-700">
+                  {apptStats.pendingList.length} session
+                  {apptStats.pendingList.length === 1 ? "" : "s"} pending approval
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/appointments/my"
+              className="text-xs font-semibold text-amber-700 hover:underline"
+            >
+              View all
+            </Link>
+          </div>
+          <ul className="divide-y divide-amber-100">
+            {apptStats.pendingList.slice(0, 4).map((a: any) => {
+              const tName =
+                typeof a.therapist === "object"
+                  ? a.therapist?.name || "Therapist"
+                  : a.therapist || "Therapist";
+              return (
+                <li key={a._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-gray-900">
+                      with {tName}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600">
+                      {new Date(a.start || a.date).toLocaleString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {a.mode ? (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 ring-1 ring-gray-200">
+                          {a.mode === "online" ? "Online" : "In person"}
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    Pending
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {/* Stats — three real numeric metrics, no navigation tiles. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

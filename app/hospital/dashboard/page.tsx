@@ -515,7 +515,7 @@ function HospitalDashboardInner() {
             <StatCard
               label="Today"
               value={stats.appointmentsToday}
-              sub="confirmed + completed"
+              sub="scheduled today"
               icon={<IcoCalendarToday />}
               color="#0f766e"
             />

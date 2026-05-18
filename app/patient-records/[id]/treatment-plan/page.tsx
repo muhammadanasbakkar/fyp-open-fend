@@ -17,6 +17,123 @@ type Intervention = { title: string; frequency?: string; notes?: string };
 type PatientInfo = { _id: string; name: string | null; email?: string | null; patientId: string | null };
 type TherapistInfo = { _id: string; name: string | null; email?: string | null };
 
+type PlanComment = {
+  _id?: string;
+  author?: string;
+  authorName?: string;
+  authorRole?: "therapist" | "supervisor";
+  text: string;
+  createdAt?: string;
+};
+
+function fmtCommentTime(d?: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString(undefined, {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function PlanCommentThread({
+  planId,
+  comments,
+  token,
+  onCommentAdded,
+}: {
+  planId: string;
+  comments: PlanComment[];
+  token: string | null;
+  onCommentAdded: (c: PlanComment) => void;
+}) {
+  const [text, setText] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit() {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setErr("");
+    setPosting(true);
+    try {
+      const res: any = await api(
+        `api/record-requests/treatment-plans/${planId}/comment`,
+        {
+          method: "POST",
+          headers: {
+            ...authHeader(token || undefined),
+            "Content-Type": "application/json",
+          } as HeadersInit,
+          body: JSON.stringify({ text: trimmed }),
+        }
+      );
+      onCommentAdded(
+        res?.comment || {
+          text: trimmed,
+          authorRole: "therapist",
+          createdAt: new Date().toISOString(),
+        }
+      );
+      setText("");
+    } catch (e: any) {
+      setErr(e?.message || "Could not post comment.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-200 pt-3">
+      <p className="mb-2 text-[10px] uppercase tracking-wider text-gray-400">
+        Private comments · you & your supervisor
+      </p>
+      {comments.length > 0 && (
+        <ul className="mb-2 space-y-1.5">
+          {comments.map((c, i) => (
+            <li
+              key={c._id || i}
+              className={`rounded-lg px-2.5 py-1.5 text-xs ${
+                c.authorRole === "supervisor"
+                  ? "bg-violet-50 border border-violet-200"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              <p className="text-[10px] text-gray-500">
+                <span className="font-semibold text-gray-700">
+                  {c.authorName || (c.authorRole === "supervisor" ? "Supervisor" : "You")}
+                </span>
+                <span className="ml-1 text-gray-400">· {fmtCommentTime(c.createdAt)}</span>
+              </p>
+              <p className="mt-0.5 text-gray-800 whitespace-pre-wrap">{c.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-start gap-2">
+        <textarea
+          rows={2}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Reply privately to your supervisor…"
+          disabled={posting}
+          maxLength={1000}
+          className="flex-1 resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:border-[#4b7eff] focus:outline-none disabled:opacity-60"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!text.trim() || posting}
+          className="shrink-0 rounded-lg bg-[#4b7eff] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#3a6bef] disabled:opacity-50 transition-colors"
+        >
+          {posting ? "…" : "Post"}
+        </button>
+      </div>
+      {err && <p className="mt-1 text-[11px] text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 export default function TreatmentPlanPage() {
   return (
     <Protected>
@@ -83,6 +200,11 @@ function TreatmentPlanInner() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [interventions, setInterventions] = useState<Intervention[]>([]);
 
+  // Plan identity + private comment thread state. Comments require an
+  // already-saved plan — `planId` stays null until the load returns one.
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [planComments, setPlanComments] = useState<PlanComment[]>([]);
+
   // Snapshot for dirty detection / discard
   const savedRef = useRef({
     problemList: "",
@@ -141,16 +263,22 @@ function TreatmentPlanInner() {
       if (p) {
         applyPlan(p);
         if (p.updatedAt) setLastSavedAt(p.updatedAt);
+        setPlanId(p._id ? String(p._id) : null);
+        setPlanComments(Array.isArray(p.comments) ? p.comments : []);
         setHasExisting(true);
         setEditing(false);
       } else {
         applyPlan({});
+        setPlanId(null);
+        setPlanComments([]);
         setHasExisting(false);
         setEditing(canEdit); // patients land in view mode even when empty
       }
     } catch {
       // If no plan exists yet, just show blank form
       applyPlan({});
+      setPlanId(null);
+      setPlanComments([]);
       setHasExisting(false);
       setEditing(canEdit);
     } finally {
@@ -242,6 +370,9 @@ function TreatmentPlanInner() {
 
       if (res?.plan) applyPlan(res.plan);
       else applyPlan({ ...payload, meta: payload.meta });
+
+      if (res?.plan?._id) setPlanId(String(res.plan._id));
+      if (Array.isArray(res?.plan?.comments)) setPlanComments(res.plan.comments);
 
       setLastSavedAt(res?.plan?.updatedAt || new Date().toISOString());
       setHasExisting(true);
@@ -421,6 +552,23 @@ function TreatmentPlanInner() {
             interventions={interventions}
             onEdit={startEdit}
           />
+        )}
+
+        {/* Private therapist↔supervisor thread on this treatment plan.
+            Only rendered for therapists once a plan has been saved. */}
+        {role === "therapist" && planId && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Private comments</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Visible only to you and your supervisor.
+            </p>
+            <PlanCommentThread
+              planId={planId}
+              comments={planComments}
+              token={token}
+              onCommentAdded={(c) => setPlanComments((prev) => [...prev, c])}
+            />
+          </section>
         )}
       </div>
     </div>
