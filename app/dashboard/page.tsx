@@ -186,6 +186,11 @@ type ApptStats = {
   // need this surfaced because a "pending" booking still needs to be approved
   // before they should rely on it.
   pendingList: any[];
+  // Therapist dashboard extras — also useful for any role looking at their
+  // appointment feed:
+  todayList: any[];        // non-cancelled appts whose `start` falls today
+  weekCount: number;       // non-cancelled appts in this calendar week
+  activePatients: number;  // distinct patients with activity in [-30d, +60d]
 };
 
 function useAppointmentStats(token: string | null) {
@@ -234,6 +239,48 @@ function useAppointmentStats(token: string | null) {
         // Total excludes cancelled sessions so the three KPI numbers reconcile.
         const total = list.filter((a: any) => a.status !== "cancelled").length;
 
+        // Today's schedule: non-cancelled appointments whose `start` falls
+        // anywhere in today's calendar day (local timezone).
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const startOfTomorrow = new Date(startOfToday);
+        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+        const todayList = list
+          .filter((a: any) => {
+            if (a.status === "cancelled") return false;
+            const s = +new Date(a.start || a.date);
+            return s >= +startOfToday && s < +startOfTomorrow;
+          })
+          .sort((a: any, b: any) => +new Date(a.start || a.date) - +new Date(b.start || b.date));
+
+        // This calendar week (Mon–Sun). We treat Monday as the week start
+        // since that's what most clinics expect.
+        const startOfWeek = new Date(startOfToday);
+        const day = startOfWeek.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const daysFromMonday = (day + 6) % 7; // distance back to Monday
+        startOfWeek.setDate(startOfWeek.getDate() - daysFromMonday);
+        const startOfNextWeek = new Date(startOfWeek);
+        startOfNextWeek.setDate(startOfNextWeek.getDate() + 7);
+        const weekCount = list.filter((a: any) => {
+          if (a.status === "cancelled") return false;
+          const s = +new Date(a.start || a.date);
+          return s >= +startOfWeek && s < +startOfNextWeek;
+        }).length;
+
+        // Active patients: distinct patient ids on any non-cancelled
+        // appointment in the rolling window [−30 days, +60 days].
+        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+        const sixtyDaysAhead = now + 60 * 24 * 60 * 60 * 1000;
+        const activeIds = new Set<string>();
+        for (const a of list) {
+          if (a.status === "cancelled") continue;
+          const s = +new Date(a.start || a.date);
+          if (s < thirtyDaysAgo || s > sixtyDaysAhead) continue;
+          const pid =
+            typeof a.patient === "object" ? a.patient?._id : a.patient;
+          if (pid) activeIds.add(String(pid));
+        }
+
         setStats({
           upcoming: upcomingAppts.length,
           total,
@@ -241,6 +288,9 @@ function useAppointmentStats(token: string | null) {
           pending,
           nextSession: upcomingAppts[0] || null,
           pendingList,
+          todayList,
+          weekCount,
+          activePatients: activeIds.size,
         });
       } catch { /* silent */ }
     })();
@@ -602,28 +652,211 @@ function TherapistDashboard({
         </div>
       )}
 
-      {/* Stats — only genuine numeric stats. Navigation cards belong in
-          Quick actions, not here. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* KPI row — four numbers a therapist checks at a glance. */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {apptStats === null ? (
-          [1, 2].map((i) => <StatSkeleton key={i} />)
+          [1, 2, 3, 4].map((i) => <StatSkeleton key={i} />)
         ) : (
           <>
             <StatCard
-              label="Upcoming"
-              value={apptStats.upcoming}
-              sub="sessions scheduled"
+              label="Today"
+              value={apptStats.todayList.length}
+              sub={apptStats.todayList.length === 1 ? "session today" : "sessions today"}
               icon={Icons.calendar}
               color={meta.color}
+            />
+            <StatCard
+              label="This week"
+              value={apptStats.weekCount}
+              sub="Mon – Sun"
+              icon={Icons.chart}
+              color="#0f766e"
+            />
+            <StatCard
+              label="Active patients"
+              value={apptStats.activePatients}
+              sub="last 30 / next 60 days"
+              icon={Icons.users}
+              color="#7c3aed"
             />
             <StatCard
               label="Total sessions"
               value={apptStats.total}
               sub="all time"
-              icon={Icons.chart}
+              icon={Icons.list}
               color="#4b7eff"
             />
           </>
+        )}
+      </div>
+
+      {/* Pending confirmations — bookings the therapist needs to approve. */}
+      {apptStats?.pendingList?.length ? (
+        <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b border-amber-200 bg-amber-100/60 px-5 py-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200/70 text-amber-700">
+                {Icons.pending}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">
+                  Pending your approval
+                </p>
+                <p className="text-[11px] text-amber-700">
+                  {apptStats.pendingList.length} booking
+                  {apptStats.pendingList.length === 1 ? "" : "s"} awaiting confirmation
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/appointments/my"
+              className="text-xs font-semibold text-amber-700 hover:underline"
+            >
+              Review all
+            </Link>
+          </div>
+          <ul className="divide-y divide-amber-100">
+            {apptStats.pendingList.slice(0, 5).map((a: any) => {
+              const pName =
+                typeof a.patient === "object"
+                  ? a.patient?.name || "Patient"
+                  : a.patient || "Patient";
+              const ptId =
+                typeof a.patient === "object" ? a.patient?.patientId : null;
+              return (
+                <li key={a._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-gray-900">
+                      {pName}
+                      {ptId ? (
+                        <span className="ml-2 font-mono text-[10px] text-gray-400">
+                          {ptId}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-600">
+                      {new Date(a.start || a.date).toLocaleString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {a.mode ? (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-600 ring-1 ring-gray-200">
+                          {a.mode === "online" ? "Online" : "In person"}
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    Pending
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
+
+      {/* Today's schedule — concrete next-action list for the rest of the day. */}
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#4b7eff]/10 text-[#4b7eff]">
+              {Icons.calendar}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Today&apos;s schedule</p>
+              <p className="text-[11px] text-gray-500">
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "2-digit",
+                })}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/appointments/my"
+            className="text-xs font-semibold text-[#4b7eff] hover:underline"
+          >
+            Full calendar
+          </Link>
+        </div>
+        {apptStats === null ? (
+          <div className="space-y-2 p-5">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-14 animate-pulse rounded-xl bg-gray-100" />
+            ))}
+          </div>
+        ) : apptStats.todayList.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm font-medium text-gray-700">No sessions scheduled today</p>
+            <p className="mt-0.5 text-xs text-gray-500">Enjoy the breather, or set new availability.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-50">
+            {apptStats.todayList.map((a: any) => {
+              const pName =
+                typeof a.patient === "object"
+                  ? a.patient?.name || "Patient"
+                  : a.patient || "Patient";
+              const start = new Date(a.start || a.date);
+              const end = a.end ? new Date(a.end) : null;
+              const isPast = +start < Date.now();
+              return (
+                <li key={a._id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                  <div className="flex w-16 shrink-0 flex-col rounded-lg bg-gray-50 px-2 py-1.5 text-center">
+                    <span className="text-xs font-bold text-gray-900">
+                      {start.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    {end && (
+                      <span className="text-[10px] text-gray-500">
+                        → {end.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-gray-900">{pName}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      {a.mode ? (
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">
+                          {a.mode === "online" ? "Online" : "In person"}
+                        </span>
+                      ) : null}
+                      <span
+                        className={[
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 font-medium",
+                          a.status === "confirmed"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : a.status === "pending"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-gray-100 text-gray-600",
+                        ].join(" ")}
+                      >
+                        {a.status}
+                      </span>
+                      {isPast && (
+                        <span className="text-[10px] text-gray-400">past</span>
+                      )}
+                    </div>
+                  </div>
+                  {a.mode === "online" && a.meetingLink ? (
+                    <a
+                      href={a.meetingLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 rounded-lg bg-[#0f766e] px-2.5 py-1.5 text-[11px] font-semibold text-white hover:brightness-110"
+                    >
+                      Join
+                    </a>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
@@ -1577,9 +1810,10 @@ export default function Dashboard() {
   // Specialties modal gating — show once every ~3 months per therapist.
   // Backend records `specialtiesModalLastShownOn` (YYYY-MM-DD) each time we
   // open the modal; we compare that against today to decide whether enough
-  // time has passed. First-ever login always shows. A localStorage fallback
-  // covers cases where the backend timestamp hasn't yet been reflected in
-  // the user object (e.g., session refresh hasn't happened).
+  // time has passed. A localStorage stamp covers the case where the backend
+  // POST hasn't yet been reflected in the user object (or quietly failed) —
+  // we treat either source as authoritative for "shown" so the modal can't
+  // re-appear before three months elapse.
   useEffect(() => {
     if (!user || !token || user?.role !== "therapist") return;
     if (modalDecisionMadeRef.current) return;
@@ -1588,15 +1822,14 @@ export default function Dashboard() {
     const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    const firstShownAt = safeGet(user, "therapistInfo.specialtiesModalFirstShownAt");
     const lastShownOn: string | null =
       safeGet(user, "therapistInfo.specialtiesModalLastShownOn") ?? null;
     const userId = user?._id || user?.id || user?.email || "unknown";
 
     // Pick whichever record is newer: the server-side timestamp or a
     // localStorage stamp written when we last opened the modal in this
-    // browser (covers the same-day-after-shown case where the user object
-    // hasn't reloaded yet).
+    // browser. `lastShownTs === 0` means we have no record from either
+    // source — that's the only case where we show on first sight.
     let lastShownTs = lastShownOn ? Date.parse(lastShownOn) : 0;
     if (typeof window !== "undefined") {
       const localTs = Number(localStorage.getItem(`thera:specialtiesModal:lastShown:${userId}`) || 0);
@@ -1610,7 +1843,12 @@ export default function Dashboard() {
       return;
     }
 
-    const shouldShow = !firstShownAt || now - lastShownTs > THREE_MONTHS_MS;
+    // Show only when we have NO record of ever showing it, OR the last show
+    // was more than three months ago. This guarantees a hard cadence even if
+    // the backend write to `specialtiesModalFirstShownAt` failed previously
+    // (in which case `firstShownAt` stays null and the old `!firstShownAt`
+    // check would have re-fired every reload).
+    const shouldShow = lastShownTs === 0 || now - lastShownTs > THREE_MONTHS_MS;
 
     modalDecisionMadeRef.current = true;
     if (!shouldShow) return;
@@ -1621,7 +1859,9 @@ export default function Dashboard() {
     }
     setShowSpecialtiesModal(true);
 
-    // Record in DB that modal was shown today
+    // Record in DB that modal was shown today. We still rely on this for
+    // cross-device gating (a user on a different browser won't have our
+    // localStorage stamp, only the server timestamp).
     fetch(`${(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "")}/api/auth/therapist/specialties-modal-shown`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
