@@ -564,11 +564,11 @@ export default function LoginPage() {
           </div>
 
           {/* CTA to register */}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#4b7eff]">
             New here?{" "}
             <Link
               href="/register?mode=patient"
-              className="font-medium text-[#4b7eff] hover:underline"
+              className="font-semibold underline-offset-2 hover:underline"
             >
               Create a patient account
             </Link>
@@ -756,21 +756,24 @@ export default function LoginPage() {
           </div>
 
           {/* Secondary links */}
-          <div className="mt-6 space-y-2 text-center text-sm text-slate-600">
-            <p>
+          <div className="mt-6 space-y-2 text-center text-sm">
+            <p >
               New patient?{" "}
               <Link
+              style={{color: "#4b7eff", fontWeight: "600"}}
                 href="/register?mode=patient"
-                className="font-semibold text-[#4b7eff] hover:underline"
+                className="text-[#4b7eff] font-semibold underline-offset-2 hover:underline"
+
               >
                 Create a patient account
               </Link>
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs ">
               Need a staff account?{" "}
               <Link
+              style={{color: "#4b7eff", fontWeight: "600"}}
                 href="/register/staff"
-                className="font-semibold text-[#4b7eff] hover:underline"
+                className="text-[#4b7eff] font-semibold underline-offset-2 hover:underline"
               >
                 Register as therapist or receptionist
               </Link>

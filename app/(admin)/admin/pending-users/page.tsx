@@ -248,55 +248,6 @@ function UserDetailDrawer({
             </div>
           </section>
 
-          {/* ── Hospital admin decisions (step 1 of 2) ── */}
-          <section>
-            <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">
-              Hospital Admin Decisions
-              <span className="ml-2 font-normal normal-case text-gray-400">
-                (Step 1 of 2 — required before your final approval)
-              </span>
-            </h4>
-            {!user.hospitalApprovals?.length ? (
-              <p className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500">
-                No hospital affiliation — proceeds straight to superadmin review.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {user.hospitalApprovals.map((a, i) => {
-                  const h = (typeof a.hospital === "object" ? a.hospital : null) as HospitalRef | null;
-                  const cls =
-                    a.status === "approved"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : a.status === "rejected"
-                        ? "bg-rose-100 text-rose-700"
-                        : "bg-amber-100 text-amber-700";
-                  return (
-                    <li
-                      key={i}
-                      className="flex items-start justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {h?.name || (typeof a.hospital === "string" ? a.hospital : "Hospital")}
-                        </p>
-                        {h?.city && <p className="text-xs text-gray-500">{h.city}</p>}
-                        {a.note && <p className="mt-1 text-xs italic text-gray-500">“{a.note}”</p>}
-                        {a.decidedAt && (
-                          <p className="mt-0.5 text-[11px] text-gray-400">
-                            {new Date(a.decidedAt).toLocaleString("en-PK")}
-                          </p>
-                        )}
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${cls}`}>
-                        {a.status}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
           {/* ── Therapist professional info ── */}
           {user.role === "therapist" && t && (
             <>

@@ -5,7 +5,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 // External Therabot endpoint — accepts { message } and returns the assistant reply.
-const THERABOT_URL = "https://web-production-5d40d.up.railway.app/";
+// Override via NEXT_PUBLIC_THERABOT_URL when the upstream changes.
+const THERABOT_URL =
+  process.env.NEXT_PUBLIC_THERABOT_URL ||
+  "https://web-production-5d40d.up.railway.app/";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 type Message = { role: "user" | "assistant"; content: string };
