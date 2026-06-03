@@ -494,7 +494,6 @@ export default function Navbar() {
                   {[
                     { href: "/appointments/book", label: "Book an appointment", icon: "📅" },
                     { href: "/appointments/my", label: "My appointments", icon: "🗓️" },
-                    { href: "/appointments/find-therapist", label: "Find a therapist", icon: "🔍" },
                   ].map(item => (
                     <Link
                       key={item.href}
@@ -514,6 +513,14 @@ export default function Navbar() {
               </div>
             )}
           </div>
+
+          {/* Promoted out of the Appointments dropdown so patients can reach it
+              in one click. */}
+          <NavLink
+            href="/appointments/find-therapist"
+            label="Find a therapist"
+            active={isActive("/appointments/find-therapist")}
+          />
 
           {role === "therapist" && (
             <>
@@ -761,7 +768,6 @@ export default function Navbar() {
                   {[
                     { href: "/appointments/book", label: "Book an appointment", icon: "📅" },
                     { href: "/appointments/my", label: "My appointments", icon: "🗓️" },
-                    { href: "/appointments/find-therapist", label: "Find a therapist", icon: "🔍" },
                   ].map(item => (
                     <Link
                       key={item.href}
@@ -779,6 +785,20 @@ export default function Navbar() {
                   ))}
                 </div>
               </div>
+
+              {/* Find a therapist — promoted out of the Appointments dropdown. */}
+              <Link
+                href="/appointments/find-therapist"
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl border border-gray-100 px-4 py-3 text-sm font-medium transition-colors",
+                  isActive("/appointments/find-therapist")
+                    ? "border-[#4b7eff]/20 bg-[#4b7eff]/5 text-[#4b7eff]"
+                    : "text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                <span className="text-base">🔍</span> Find a therapist
+              </Link>
 
               {/* Availability */}
               {showAvailability && (
