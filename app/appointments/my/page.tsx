@@ -578,6 +578,23 @@ function List() {
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 space-y-6">
+        {/* Back to dashboard */}
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-[#4b7eff]"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to dashboard
+        </Link>
+
         {/* Header */}
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

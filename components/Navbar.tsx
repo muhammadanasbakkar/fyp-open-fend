@@ -43,17 +43,22 @@ function NavLink({
   active?: boolean;
   variant?: "nav" | "menu";
 }) {
+  // `<a>` elements in this app inherit a heavier weight than `<button>`
+  // somewhere up the cascade (visible at rest as "Find a therapist" reading
+  // bolder than its sibling dropdown triggers). The `!` modifiers force the
+  // weight on the anchor itself, matching the sibling buttons exactly:
+  //   rest  → 500
+  //   hover → 600
   const navClasses = cn(
-    "rounded-lg px-3 py-2 text-sm font-medium transition-all",
+    "inline-flex items-center rounded-lg px-3 py-2 text-sm !font-meium transition-all",
     active
       ? "bg-[#4b7eff]/10 text-[#4b7eff]"
-      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:!font-semibold"
   );
 
   const menuClasses = cn(
-    "block w-full rounded-lg px-3 py-2 text-sm transition-colors",
-    "whitespace-nowrap",
-    active ? "bg-[#4b7eff]/8 text-[#4b7eff] font-medium" : "text-gray-700 hover:bg-gray-50"
+    "block w-full rounded-lg px-3 py-2 text-sm transition-colors whitespace-nowrap",
+    active ? "bg-[#4b7eff]/10 font-medium text-[#4b7eff]" : "text-gray-700 hover:bg-gray-50"
   );
 
   return (
@@ -100,6 +105,20 @@ export default function Navbar() {
 
   // 👇 show Availability when no user OR therapist
   const showAvailability = !user || role === "therapist";
+
+  // ── Per-role nav visibility ────────────────────────────────────────────
+  // Each role only sees what they can actually act on. Admin/oversight
+  // roles (supervisor, hospitalAdmin, superAdmin) don't need patient-facing
+  // browse links because they don't book or attend sessions.
+  const isPatientFacing = !user || role === "patient";
+  // Therapy mega-menu + "Find a therapist" — for visitors discovering care
+  // and patients looking up therapy types. Staff don't need either.
+  const showBrowse = isPatientFacing;
+  // Appointments dropdown (Book + My appointments) — also useful for
+  // therapists & receptionists who manage real bookings; hidden from the
+  // supervisor / hospitalAdmin / superAdmin dashboards.
+  const showAppointmentsMenu =
+    isPatientFacing || role === "therapist" || role === "receptionist";
 
   // role-based extra links (excluding Availability now)
   const reportsRoles = ["therapist", "supervisor", "hospitalAdmin", "superAdmin", "patient", "receptionist"];
@@ -333,7 +352,12 @@ export default function Navbar() {
   ];
 
   const isActive = (href: string) => pathname === href;
-  const apptActive = pathname.startsWith("/appointments/");
+  // The Appointments dropdown only contains Book + My appointments. Don't
+  // light it up for other /appointments/* routes (like find-therapist, which
+  // is now a top-level link of its own).
+  const apptActive =
+    pathname.startsWith("/appointments/book") ||
+    pathname.startsWith("/appointments/my");
   const therapyActive = pathname.startsWith("/therapy/");
 
   useEffect(() => {
@@ -395,17 +419,18 @@ export default function Navbar() {
         {/* ── Desktop nav ── */}
         <nav className="hidden items-center gap-0.5 md:flex">
 
-          {/* Therapy mega-menu */}
+          {/* Therapy mega-menu — hidden for staff who don't browse therapy. */}
+          {showBrowse && (
           <div className="relative" ref={therapyMenuRef}>
             <button
               onClick={() => setTherapyOpen(s => !s)}
               aria-expanded={therapyOpen}
               aria-haspopup="menu"
               className={cn(
-                "inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                "inline-flex items-center rounded-lg px-3 py-2 text-sm !font-medium transition-all",
                 therapyActive
                   ? "bg-[#4b7eff]/10 text-[#4b7eff]"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:!font-semibold"
               )}
             >
               Therapy <ChevronDown open={therapyOpen} />
@@ -432,7 +457,7 @@ export default function Navbar() {
                               className={cn(
                                 "group flex flex-col rounded-lg px-2.5 py-2 transition-colors",
                                 active
-                                  ? "bg-[#4b7eff]/8 text-[#4b7eff]"
+                                  ? "bg-[#4b7eff]/10 text-[#4b7eff]"
                                   : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                               )}
                             >
@@ -456,7 +481,7 @@ export default function Navbar() {
                   <p className="text-xs text-gray-400">Browse all therapy types by specialty, approach, and format.</p>
                   <Link
                     href="/appointments/book"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#4b7eff]/8 px-3 py-1.5 text-xs font-semibold text-[#4b7eff] hover:bg-[#4b7eff]/15 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#4b7eff]/10 px-3 py-1.5 text-xs font-semibold text-[#4b7eff] hover:bg-[#4b7eff]/20 transition-colors"
                   >
                     Book a session →
                   </Link>
@@ -464,18 +489,20 @@ export default function Navbar() {
               </div>
             )}
           </div>
+          )}
 
-          {/* Appointments dropdown */}
+          {/* Appointments dropdown — hidden from oversight roles. */}
+          {showAppointmentsMenu && (
           <div className="relative" ref={apptMenuRef}>
             <button
               onClick={() => setApptOpen(s => !s)}
               aria-expanded={apptOpen}
               aria-haspopup="menu"
               className={cn(
-                "inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                "inline-flex items-center rounded-lg px-3 py-2 text-sm !font-medium transition-all",
                 apptActive
                   ? "bg-[#4b7eff]/10 text-[#4b7eff]"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 hover:!font-semibold"
               )}
             >
               Appointments <ChevronDown open={apptOpen} />
@@ -501,7 +528,7 @@ export default function Navbar() {
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
                         isActive(item.href)
-                          ? "bg-[#4b7eff]/8 font-medium text-[#4b7eff]"
+                          ? "bg-[#4b7eff]/10 font-medium text-[#4b7eff]"
                           : "text-gray-700 hover:bg-gray-50"
                       )}
                     >
@@ -512,28 +539,32 @@ export default function Navbar() {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Promoted out of the Appointments dropdown so patients can reach it
-              in one click. */}
-          <NavLink
-            href="/appointments/find-therapist"
-            label="Find a therapist"
-            active={isActive("/appointments/find-therapist")}
-          />
+          </div>
+          )}
+
+          {/* Promoted out of the Appointments dropdown so patients can reach
+              it in one click. Hidden from staff who don't browse for a
+              therapist. */}
+          {showBrowse && (
+            <NavLink
+              href="/appointments/find-therapist"
+              label="Find a therapist"
+              active={isActive("/appointments/find-therapist")}
+            />
+          )}
 
           {role === "therapist" && (
             <>
               <NavLink href="/availability" label="Availability" active={isActive("/availability")} />
-              <NavLink href="/resources" label="Resources" active={isActive("/resources")} />
-              <NavLink href="/about" label="About" active={isActive("/about")} />
+              {/* <NavLink href="/resources" label="Resources" active={isActive("/resources")} />
+              <NavLink href="/about" label="About" active={isActive("/about")} /> */}
             </>
           )}
 
-          {roleLinks.map(l => (
+          {roleLinks.map((l) => (
             <NavLink key={l.href} href={l.href} label={l.label} active={isActive(l.href)} />
           ))}
-
         </nav>
 
         {/* ── Desktop auth ── */}
@@ -542,13 +573,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
               >
                 Log in
               </Link>
               <Link
                 href="/appointments/book"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#4b7eff]/20 bg-[#4b7eff]/8 px-3.5 py-2 text-sm font-semibold text-[#4b7eff] transition-all hover:bg-[#4b7eff]/15"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#4b7eff]/20 bg-[#4b7eff]/10 px-3.5 py-2 text-sm font-semibold !text-[#4b7eff] transition-all hover:bg-[#4b7eff]/20 hover:!text-[#4b7eff] visited:!text-[#4b7eff]"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -557,7 +588,7 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/register"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 hover:shadow-md"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] px-4 py-2 text-sm font-semibold !text-white shadow-sm transition-all hover:brightness-110 hover:!text-white hover:shadow-md visited:!text-white"
               >
                 Get started
               </Link>
@@ -609,7 +640,7 @@ export default function Navbar() {
                         className={cn(
                           "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
                           isActive(item.href)
-                            ? "bg-[#4b7eff]/8 font-medium text-[#4b7eff]"
+                            ? "bg-[#4b7eff]/10 font-medium text-[#4b7eff]"
                             : "text-gray-700 hover:bg-gray-50"
                         )}
                       >
@@ -671,7 +702,7 @@ export default function Navbar() {
                   <Link
                     href="/appointments/book"
                     onClick={() => setOpen(false)}
-                    className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] py-3 text-sm font-bold text-white shadow-sm hover:brightness-110 transition-all"
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#4b7eff] to-[#6366f1] py-3 text-sm font-bold !text-white shadow-sm transition-all hover:brightness-110 hover:!text-white visited:!text-white"
                   >
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -682,14 +713,14 @@ export default function Navbar() {
                     <Link
                       href="/login"
                       onClick={() => setOpen(false)}
-                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900"
                     >
                       Log in
                     </Link>
                     <Link
                       href="/register"
                       onClick={() => setOpen(false)}
-                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900"
                     >
                       Sign up
                     </Link>
@@ -718,7 +749,8 @@ export default function Navbar() {
                 </div>
               )}
 
-              {/* Therapy accordion */}
+              {/* Therapy accordion — visitor / patient only. */}
+              {showBrowse && (
               <details className="group rounded-2xl border border-gray-100 overflow-hidden">
                 <summary className="flex cursor-pointer list-none items-center justify-between bg-white px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors">
                   <span className="flex items-center gap-2">
@@ -758,8 +790,10 @@ export default function Navbar() {
                   ))}
                 </div>
               </details>
+              )}
 
-              {/* Appointments */}
+              {/* Appointments — hidden from oversight roles. */}
+              {showAppointmentsMenu && (
               <div className="rounded-2xl border border-gray-100 overflow-hidden">
                 <p className="border-b border-gray-50 bg-gray-50/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                   Appointments
@@ -776,7 +810,7 @@ export default function Navbar() {
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
                         isActive(item.href)
-                          ? "bg-[#4b7eff]/8 font-medium text-[#4b7eff]"
+                          ? "bg-[#4b7eff]/10 font-medium text-[#4b7eff]"
                           : "text-gray-700 hover:bg-gray-50"
                       )}
                     >
@@ -785,20 +819,23 @@ export default function Navbar() {
                   ))}
                 </div>
               </div>
+              )}
 
-              {/* Find a therapist — promoted out of the Appointments dropdown. */}
-              <Link
-                href="/appointments/find-therapist"
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl border border-gray-100 px-4 py-3 text-sm font-medium transition-colors",
-                  isActive("/appointments/find-therapist")
-                    ? "border-[#4b7eff]/20 bg-[#4b7eff]/5 text-[#4b7eff]"
-                    : "text-gray-700 hover:bg-gray-50"
-                )}
-              >
-                <span className="text-base">🔍</span> Find a therapist
-              </Link>
+              {/* Find a therapist — visitor / patient only. */}
+              {showBrowse && (
+                <Link
+                  href="/appointments/find-therapist"
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl border border-gray-100 px-4 py-3 text-sm font-medium transition-colors",
+                    isActive("/appointments/find-therapist")
+                      ? "border-[#4b7eff]/20 bg-[#4b7eff]/5 text-[#4b7eff]"
+                      : "text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  <span className="text-base">🔍</span> Find a therapist
+                </Link>
+              )}
 
               {/* Availability */}
               {showAvailability && (
@@ -855,7 +892,7 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-        
+
       )}
     </header>
   );

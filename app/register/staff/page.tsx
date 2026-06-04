@@ -1388,8 +1388,9 @@ export default function RegisterStaffPage() {
   const [supervisors, setSupervisors] = useState<any[]>([]);
 
   // Supervisor + Hospital Admin (same person)
-  const [alsoHospitalAdmin, setAlsoHospitalAdmin] = useState(false);
-  const [managedHospitalId, setManagedHospitalId] = useState("");
+  // Feature removed — kept here commented out so it can be reinstated later.
+  // const [alsoHospitalAdmin, setAlsoHospitalAdmin] = useState(false);
+  // const [managedHospitalId, setManagedHospitalId] = useState("");
 
   // Employment type for therapists
   const [employmentType, setEmploymentType] = useState<"hospital" | "individual">("hospital");
@@ -1466,10 +1467,11 @@ export default function RegisterStaffPage() {
     if (!therapist && !supervisor) {
       setSelectedHospitals([]);
     }
-    if (!supervisor) {
-      setAlsoHospitalAdmin(false);
-      setManagedHospitalId("");
-    }
+    // Supervisor + Hospital Admin reset — feature commented out.
+    // if (!supervisor) {
+    //   setAlsoHospitalAdmin(false);
+    //   setManagedHospitalId("");
+    // }
   }, [therapist, supervisor]);
 
   // Clear receptionist-only hospital selection when switching away
@@ -1823,14 +1825,14 @@ export default function RegisterStaffPage() {
         selectedHospitals.forEach((id) => fd.append("affiliatedHospitals", id));
         fd.delete("primaryHospital");
 
-        // Same person also acts as a hospital admin?
-        if (alsoHospitalAdmin) {
-          if (!managedHospitalId) {
-            throw new Error("Pick a hospital to manage as admin, or uncheck the option.");
-          }
-          fd.set("alsoHospitalAdmin", "true");
-          fd.set("managedHospital", managedHospitalId);
-        }
+        // Same person also acts as a hospital admin? — feature removed.
+        // if (alsoHospitalAdmin) {
+        //   if (!managedHospitalId) {
+        //     throw new Error("Pick a hospital to manage as admin, or uncheck the option.");
+        //   }
+        //   fd.set("alsoHospitalAdmin", "true");
+        //   fd.set("managedHospital", managedHospitalId);
+        // }
       }
 
       const res = await fetch(`${API}api/auth/register`, {
@@ -1974,37 +1976,41 @@ export default function RegisterStaffPage() {
                   required
                 />
 
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, password: e.target.value }))
-                    }
-                    required
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                    style={{top: "50%", transform: "translateY(-50%)"}}
-                    className="absolute right-2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30"
-                    // className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30"
-                  >
-                    {showPassword ? (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    )}
-                  </button>
+                <div>
+                  {/* Relative wrapper is scoped to the input + button only —
+                      otherwise `top: 50%` centers the icon against the
+                      combined height of input AND helper text, pushing it
+                      below the field. */}
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      value={form.password}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, password: e.target.value }))
+                      }
+                      required
+                      className="pr-11"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      title={showPassword ? "Hide password" : "Show password"}
+                      className="absolute inset-y-0 right-1 my-auto flex h-9 w-9 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4b7eff]/30"
+                    >
+                      {showPassword ? (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                   <p className="mt-1 text-[11px] text-gray-400">
                     Use at least 8 characters with a mix of letters and numbers.
                   </p>
@@ -2230,7 +2236,9 @@ export default function RegisterStaffPage() {
                   )}
                 </div>
 
-                {/* Same person also serves as Hospital Admin */}
+                {/* Same person also serves as Hospital Admin — feature
+                    removed; UI commented out so it can be reinstated later. */}
+                {/*
                 <div className="mt-5 rounded-xl border border-dashed border-[#4b7eff]/40 bg-[#4b7eff]/5 p-4">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
@@ -2280,6 +2288,7 @@ export default function RegisterStaffPage() {
                     </div>
                   )}
                 </div>
+                */}
 
                 <div className="mt-4">
                   <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -2524,7 +2533,7 @@ export default function RegisterStaffPage() {
                         }));
                       }}
                       required
-                      className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white shadow-sm"
+                      className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white shadow-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 hover:file:bg-slate-200"
                     />
                     <p className="mt-1 text-[11px] text-gray-500">
                       Upload degrees, certifications, or registrations. You can
