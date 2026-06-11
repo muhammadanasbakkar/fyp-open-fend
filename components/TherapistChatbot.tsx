@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 // Override via NEXT_PUBLIC_THERABOT_URL when the upstream changes.
 const THERABOT_URL =
   process.env.NEXT_PUBLIC_THERABOT_URL ||
-  "https://web-production-5d40d.up.railway.app/";
+  "https://web-production-5d40d.up.railway.app/api/therapist-chat";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 type Message = { role: "user" | "assistant"; content: string };
