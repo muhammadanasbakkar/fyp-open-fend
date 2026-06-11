@@ -47,13 +47,13 @@ function Bubble({ msg }: { msg: Message }) {
 }
 
 // ── quick prompt chips ────────────────────────────────────────────────────────
-const QUICK_PROMPTS = [
-  "Summarise this patient's history",
-  "Suggest SOAP note for today's session",
-  "Recommend treatment interventions",
-  "What are the current therapy goals?",
-  "Draft a follow-up plan",
-];
+// const QUICK_PROMPTS = [
+  // "Summarise this patient's history",
+  // "Suggest SOAP note for today's session",
+  // "Recommend treatment interventions",
+  // "What are the current therapy goals?",
+  // "Draft a follow-up plan",
+// ];
 
 // ── main component ─────────────────────────────────────────────────────────────
 export default function TherapistChatbot() {
@@ -203,7 +203,7 @@ export default function TherapistChatbot() {
                   </p>
                 </div>
                 {/* quick prompts */}
-                <div className="flex flex-wrap justify-center gap-1.5 mt-1">
+                {/* <div className="flex flex-wrap justify-center gap-1.5 mt-1">
                   {QUICK_PROMPTS.map((q) => (
                     <button
                       key={q}
@@ -213,7 +213,7 @@ export default function TherapistChatbot() {
                       {q}
                     </button>
                   ))}
-                </div>
+                </div> */}
               </div>
             )}
 
@@ -236,7 +236,7 @@ export default function TherapistChatbot() {
           </div>
 
           {/* quick prompts row (when there are messages) */}
-          {messages.length > 0 && (
+          {/* {messages.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto px-4 py-2 border-t border-gray-100 scrollbar-none">
               {QUICK_PROMPTS.map((q) => (
                 <button
@@ -248,7 +248,7 @@ export default function TherapistChatbot() {
                 </button>
               ))}
             </div>
-          )}
+          )} */}
 
           {/* input */}
           <div className="flex items-end gap-2 border-t border-gray-100 px-3 py-3">
